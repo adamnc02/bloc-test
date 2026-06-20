@@ -8,7 +8,7 @@
 <title>BLOC — Training</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
   /* ── Surfaces (sampled from approved mockup screenshots) ──── */
@@ -28,7 +28,11 @@
   --blue: #378ADD;
   --purple: #7F77DD;
   --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: 'DM Mono', ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', Menlo, Consolas, monospace;
+  /* DM Mono retired app-wide — Inter is now the only typeface in the app.
+     --font-mono is kept (rather than removed) so every existing call site
+     that already references it continues to work without needing to be
+     individually rewritten; it just resolves to Inter like everything else. */
+  --font-mono: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --r: 12px;
   --r-sm: 8px;
   --r-lg: 20px;
@@ -92,34 +96,47 @@ body {
   position: fixed;
   bottom: 0;
   left: 0; right: 0;
-  height: calc(var(--nav-h) + var(--safe-bottom));
+  min-height: var(--nav-h);
   background: rgba(10,10,10,0.85);
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-top: 0.5px solid var(--border2);
   display: flex;
-  align-items: flex-start;
-  padding-top: 10px;
+  align-items: stretch;
   padding-bottom: var(--safe-bottom);
   z-index: 100;
 }
 
 .nav-btn {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 3px;
   background: none;
   border: none;
+  border-radius: var(--r-sm);
   color: var(--text3);
   font-family: var(--font-display);
   font-size: 10px;
+  font-weight: 500;
   cursor: pointer;
-  padding: 4px 0;
-  transition: color 0.15s;
-  letter-spacing: 0.05em;
+  padding: 9px 4px;
+  margin: 4px 2px;
+  transition: color 0.15s, background 0.15s;
+  letter-spacing: 0.02em;
 }
-.nav-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.nav-btn:active { background: rgba(255,255,255,0.06); }
+.nav-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.nav-btn span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .nav-btn.active { color: var(--accent); }
 
 /* ── TYPOGRAPHY ──────────────────────────── */
@@ -778,7 +795,7 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
       <div class="card" style="margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <span style="font-size:13px;color:var(--text2);">BLOC Training App</span>
-          <span class="badge badge-green">v5.00</span>
+          <span class="badge badge-green">v5.01</span>
         </div>
       </div>
 
@@ -897,31 +914,31 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
   <nav id="nav">
     <button class="nav-btn active" id="nav-home" onclick="showScreen('home')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="9" rx="0.5"/><rect x="10" y="7" width="4" height="14" rx="0.5"/><rect x="17" y="3" width="4" height="18" rx="0.5"/></svg>
-      progress
+      <span>progress</span>
     </button>
     <button class="nav-btn" id="nav-plan" onclick="showScreen('plan')">
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      plan
+      <span>plan</span>
     </button>
     <button class="nav-btn" id="nav-train" onclick="showScreen('train')">
       <svg viewBox="0 0 24 24"><path d="M6 4v16M18 4v16M3 8h4M17 8h4M3 16h4M17 16h4"/></svg>
-      train
+      <span>train</span>
     </button>
     <button class="nav-btn" id="nav-body" onclick="showScreen('body')">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><path d="M12 8v6M9 11h6M9 22l3-4 3 4"/></svg>
-      body
+      <span>body</span>
     </button>
     <button class="nav-btn" id="nav-nutrition" onclick="showScreen('nutrition')">
       <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2"/></svg>
-      nutrition
+      <span>nutrition</span>
     </button>
     <button class="nav-btn" id="nav-goals" onclick="showScreen('goals')">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" style="fill:currentColor"/></svg>
-      goals
+      <span>goals</span>
     </button>
     <button class="nav-btn" id="nav-settings" onclick="showScreen('settings')">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      settings
+      <span>settings</span>
     </button>
   </nav>
 </div>
@@ -2354,7 +2371,7 @@ function renderHome() {
 
     cycleEl.innerHTML = `<div class="hero-card" data-page="home">
       <div class="hero-nav-arrows" style="top:18px;right:18px;flex-direction:column;align-items:flex-end;gap:4px;" onclick="event.stopPropagation();">
-        <span style="font-size:10px;color:rgba(255,255,255,0.55);letter-spacing:0.04em;white-space:nowrap;">v5.00</span>
+        <span style="font-size:10px;color:rgba(255,255,255,0.55);letter-spacing:0.04em;white-space:nowrap;">v5.01</span>
         ${navArrowButtons}
       </div>
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
@@ -2370,7 +2387,7 @@ function renderHome() {
         <div class="hero-callout"><div class="hero-callout-lbl">Avg steps</div><div class="hero-callout-val">${avgSteps !== null ? avgSteps.toLocaleString() : '—'}</div></div>
       </div>
       <div class="hero-callouts">
-        <div class="hero-callout"><div class="hero-callout-lbl">Avg kcal</div><div class="hero-callout-val">${avgKcal !== null ? avgKcal : '—'}</div></div>
+        <div class="hero-callout"><div class="hero-callout-lbl">Avg kcal</div><div class="hero-callout-val">${avgKcal !== null ? avgKcal.toLocaleString() : '—'}</div></div>
         <div class="hero-callout"><div class="hero-callout-lbl">Avg protein</div><div class="hero-callout-val">${avgProtein !== null ? avgProtein+'g' : '—'}</div></div>
       </div>
       <div class="hero-progress-row"><span>${weekLabel}</span><span>${cyclePct}%</span></div>
@@ -4679,15 +4696,19 @@ function nutrShiftDate(delta) {
 // so a capture-phase click listener suppresses that tap whenever the
 // gesture actually moved far enough to count as a swipe.
 //
-// Kept deliberately simple: the card does NOT track the finger during the
-// drag (that 1:1-follow version turned out to be the source of a real
-// double-day-skip bug on iOS, most likely from a touchcancel case never
-// being handled and leaving state mid-gesture). Instead, on release past
-// the threshold, the card does one fixed slide-out / slide-in animation.
-// isAnimating is a hard lock — set the instant a swipe is committed,
-// cleared only when the animation's final timer fires — so a second
-// gesture starting mid-animation is ignored outright rather than risking
-// a second nutrShiftDate() call stacking on top of the first.
+// Rewritten to use a single gesture token rather than relying on a
+// re-queried `.hero-card` element mid-animation: the previous version
+// looked up the card by element reference at multiple points across an
+// async timeout + rAF chain, and since renderNutrHero() replaces the
+// card's innerHTML (and therefore its DOM node) every time the date
+// changes, that reference could go stale or be re-queried at the wrong
+// moment — producing a double-shift on one swipe direction and a
+// no-op-looking shift (animation plays, date never updates) on the
+// other. Each call to commitSwipe() now does exactly one thing: animate
+// the *current* card out, call nutrShiftDate exactly once with exactly
+// one delta, then animate the freshly-rendered card in. A monotonically
+// increasing gesture id guards against any overlap if a new gesture
+// somehow starts before the previous animation's timers have cleared.
 let _nutrHeroSwipeInited = false;
 function initNutrHeroSwipe() {
   if (_nutrHeroSwipeInited) return;
@@ -4695,7 +4716,13 @@ function initNutrHeroSwipe() {
   const wrap = document.getElementById('nutr-hero-wrap');
   if (!wrap) return;
   wrap.style.touchAction = 'pan-y';
-  let startX = 0, startY = 0, tracking = false, moved = false, suppressClick = false, isAnimating = false;
+
+  let startX = 0, startY = 0;
+  let tracking = false;   // a touch is currently down and being watched
+  let moved = false;      // the touch has moved enough to count as a swipe (not a tap)
+  let busy = false;       // a swipe animation + date change is in flight
+  let suppressClick = false;
+  let gestureId = 0;
 
   function getCard() { return wrap.querySelector('.hero-card'); }
 
@@ -4704,19 +4731,28 @@ function initNutrHeroSwipe() {
     moved = false;
   }
 
-  function slideTo(dayDelta) {
-    const card = getCard();
-    isAnimating = true;
+  // Animates the current card out, changes the date exactly once, then
+  // animates the new card in. Guarded by `busy` + a gesture token so a
+  // stray extra event can never trigger a second date change.
+  function commitSwipe(dayDelta) {
+    if (busy) return;
+    busy = true;
     suppressClick = true;
-    const outX = dayDelta > 0 ? -260 : 260; // swipe left (next day) exits left
+    const myGesture = ++gestureId;
+
+    const outX = dayDelta > 0 ? -260 : 260; // next day exits left, prev day exits right
+    const card = getCard();
     if (card) {
       card.style.transition = 'transform 0.16s ease-in, opacity 0.16s ease-in';
       card.style.transform = `translateX(${outX}px)`;
       card.style.opacity = '0';
     }
+
     setTimeout(() => {
-      nutrShiftDate(dayDelta);
+      if (myGesture !== gestureId) return; // superseded — bail out silently
+      nutrShiftDate(dayDelta); // exactly one date change per completed swipe
       requestAnimationFrame(() => {
+        if (myGesture !== gestureId) return;
         const newCard = getCard();
         if (newCard) {
           newCard.style.transition = 'none';
@@ -4726,15 +4762,13 @@ function initNutrHeroSwipe() {
           // before we transition to the end position on the next frame.
           void newCard.offsetWidth;
           requestAnimationFrame(() => {
+            if (myGesture !== gestureId) return;
             newCard.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
             newCard.style.transform = 'translateX(0)';
             newCard.style.opacity = '1';
           });
         }
-        // Single authoritative place isAnimating is cleared, on a fixed
-        // timer from here rather than chained off the transitionend event
-        // (which can fail to fire at all if the element was replaced).
-        setTimeout(() => { isAnimating = false; }, 210);
+        setTimeout(() => { if (myGesture === gestureId) busy = false; }, 210);
       });
     }, 160);
   }
@@ -4749,7 +4783,7 @@ function initNutrHeroSwipe() {
   }
 
   wrap.addEventListener('touchstart', e => {
-    if (isAnimating) { resetGesture(); return; }
+    if (busy) { resetGesture(); return; }
     // Ignore gestures starting on the nav arrow buttons themselves —
     // otherwise this handler can swallow/interfere with their tap on
     // some mobile browsers (e.g. iOS Safari's touch-to-click synthesis).
@@ -4762,7 +4796,7 @@ function initNutrHeroSwipe() {
   }, { passive: true });
 
   wrap.addEventListener('touchmove', e => {
-    if (!tracking || isAnimating) return;
+    if (!tracking || busy) return;
     const dx = e.touches[0].clientX - startX;
     const dy = e.touches[0].clientY - startY;
     if (!moved && Math.abs(dy) > Math.abs(dx) + 4) { tracking = false; return; }
@@ -4770,12 +4804,12 @@ function initNutrHeroSwipe() {
   }, { passive: true });
 
   wrap.addEventListener('touchend', e => {
-    if (isAnimating) { resetGesture(); return; }
-    if (tracking && moved) {
+    if (busy) { resetGesture(); return; }
+    if (tracking && moved && e.changedTouches.length === 1) {
       const dx = e.changedTouches[0].clientX - startX;
       if (Math.abs(dx) > 40) {
         // Swipe left (negative dx) → next day (+1). Swipe right → prev day (-1).
-        slideTo(dx < 0 ? 1 : -1);
+        commitSwipe(dx < 0 ? 1 : -1);
       } else {
         snapBack();
       }
@@ -4786,25 +4820,22 @@ function initNutrHeroSwipe() {
   // Without this, a gesture interrupted by the system (edge-swipe-back,
   // control-centre pull, an incoming call, etc.) leaves `tracking`/`moved`
   // stuck from the aborted gesture, and the next real touchstart can
-  // inherit stale state — this was the most likely cause of the reported
-  // "skips two days" bug. Always reset cleanly on cancel.
+  // inherit stale state. Always reset cleanly on cancel.
   wrap.addEventListener('touchcancel', () => {
-    const card = getCard();
-    if (card && !isAnimating) {
-      card.style.transition = 'transform 0.18s ease-out, opacity 0.18s ease-out';
-      card.style.transform = 'translateX(0)';
-      card.style.opacity = '1';
-    }
+    if (!busy) snapBack();
     resetGesture();
   }, { passive: true });
 
   // Capture phase so this runs before the hero card's own onclick handler.
+  // suppressClick is cleared here on the very next click regardless of
+  // whether it was the suppressed one, so a missed synthetic click after
+  // a swipe (common on iOS) can never permanently block future taps.
   wrap.addEventListener('click', e => {
     if (suppressClick) {
       e.stopPropagation();
       e.preventDefault();
-      suppressClick = false;
     }
+    suppressClick = false;
   }, true);
 }
 
