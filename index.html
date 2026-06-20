@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>BLOC — Training</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -26,8 +27,8 @@
   --amber: #EF9F27;
   --blue: #378ADD;
   --purple: #7F77DD;
-  --font-display: 'Inter', -apple-system, sans-serif;
-  --font-mono: 'DM Mono', monospace;
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', Menlo, Consolas, monospace;
   --r: 16px;
   --r-sm: 10px;
   --r-lg: 20px;
@@ -97,7 +98,7 @@ body {
   border-top: 0.5px solid var(--border2);
   display: flex;
   align-items: flex-start;
-  padding-top: 12px;
+  padding-top: 10px;
   padding-bottom: var(--safe-bottom);
   padding-left: max(4px, env(safe-area-inset-left, 0px));
   padding-right: max(4px, env(safe-area-inset-right, 0px));
@@ -113,12 +114,13 @@ body {
   background: none;
   border: none;
   color: var(--text3);
-  font-family: var(--font-mono);
+  font-family: var(--font-display);
   font-size: 10px;
+  font-weight: 500;
   cursor: pointer;
   padding: 4px 0;
   transition: color 0.15s;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.02em;
 }
 .nav-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .nav-btn.active { color: var(--accent); }
@@ -4679,6 +4681,16 @@ function nutrShiftDate(delta) {
 // The hero itself is also tap-to-open-date-picker (see openNutrDatePicker),
 // so a capture-phase click listener suppresses that tap whenever the
 // gesture actually moved far enough to count as a swipe.
+//
+// Kept deliberately simple: the card does NOT track the finger during the
+// drag (that 1:1-follow version turned out to be the source of a real
+// double-day-skip bug on iOS, most likely from a touchcancel case never
+// being handled and leaving state mid-gesture). Instead, on release past
+// the threshold, the card does one fixed slide-out / slide-in animation.
+// isAnimating is a hard lock — set the instant a swipe is committed,
+// cleared only when the animation's final timer fires — so a second
+// gesture starting mid-animation is ignored outright rather than risking
+// a second nutrShiftDate() call stacking on top of the first.
 let _nutrHeroSwipeInited = false;
 function initNutrHeroSwipe() {
   if (_nutrHeroSwipeInited) return;
@@ -4686,39 +4698,109 @@ function initNutrHeroSwipe() {
   const wrap = document.getElementById('nutr-hero-wrap');
   if (!wrap) return;
   wrap.style.touchAction = 'pan-y';
-  let startX = 0, startY = 0, dragging = false, moved = false, suppressClick = false;
+  let startX = 0, startY = 0, tracking = false, moved = false, suppressClick = false, isAnimating = false;
+
+  function getCard() { return wrap.querySelector('.hero-card'); }
+
+  function resetGesture() {
+    tracking = false;
+    moved = false;
+  }
+
+  function slideTo(dayDelta) {
+    const card = getCard();
+    isAnimating = true;
+    suppressClick = true;
+    const outX = dayDelta > 0 ? -260 : 260; // swipe left (next day) exits left
+    if (card) {
+      card.style.transition = 'transform 0.16s ease-in, opacity 0.16s ease-in';
+      card.style.transform = `translateX(${outX}px)`;
+      card.style.opacity = '0';
+    }
+    setTimeout(() => {
+      nutrShiftDate(dayDelta);
+      requestAnimationFrame(() => {
+        const newCard = getCard();
+        if (newCard) {
+          newCard.style.transition = 'none';
+          newCard.style.transform = `translateX(${-outX}px)`;
+          newCard.style.opacity = '0';
+          // Force layout so the browser registers the start position
+          // before we transition to the end position on the next frame.
+          void newCard.offsetWidth;
+          requestAnimationFrame(() => {
+            newCard.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+            newCard.style.transform = 'translateX(0)';
+            newCard.style.opacity = '1';
+          });
+        }
+        // Single authoritative place isAnimating is cleared, on a fixed
+        // timer from here rather than chained off the transitionend event
+        // (which can fail to fire at all if the element was replaced).
+        setTimeout(() => { isAnimating = false; }, 210);
+      });
+    }, 160);
+  }
+
+  function snapBack() {
+    const card = getCard();
+    if (card) {
+      card.style.transition = 'transform 0.18s ease-out, opacity 0.18s ease-out';
+      card.style.transform = 'translateX(0)';
+      card.style.opacity = '1';
+    }
+  }
+
   wrap.addEventListener('touchstart', e => {
+    if (isAnimating) { resetGesture(); return; }
     // Ignore gestures starting on the nav arrow buttons themselves —
     // otherwise this handler can swallow/interfere with their tap on
     // some mobile browsers (e.g. iOS Safari's touch-to-click synthesis).
-    if (e.target.closest('.hero-nav-arrows')) { dragging = false; return; }
+    if (e.target.closest('.hero-nav-arrows')) { resetGesture(); return; }
+    if (e.touches.length !== 1) { resetGesture(); return; }
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
-    dragging = true;
+    tracking = true;
     moved = false;
   }, { passive: true });
+
   wrap.addEventListener('touchmove', e => {
-    if (!dragging) return;
+    if (!tracking || isAnimating) return;
     const dx = e.touches[0].clientX - startX;
     const dy = e.touches[0].clientY - startY;
-    if (!moved && Math.abs(dy) > Math.abs(dx) + 4) { dragging = false; return; }
-    if (Math.abs(dx) > 8 && !moved) {
-      moved = true;
-    }
+    if (!moved && Math.abs(dy) > Math.abs(dx) + 4) { tracking = false; return; }
+    if (Math.abs(dx) > 8) moved = true;
   }, { passive: true });
+
   wrap.addEventListener('touchend', e => {
-    if (dragging && moved) {
+    if (isAnimating) { resetGesture(); return; }
+    if (tracking && moved) {
       const dx = e.changedTouches[0].clientX - startX;
       if (Math.abs(dx) > 40) {
-        suppressClick = true;
-        nutrShiftDate(dx < 0 ? 1 : -1);
+        // Swipe left (negative dx) → next day (+1). Swipe right → prev day (-1).
+        slideTo(dx < 0 ? 1 : -1);
+      } else {
+        snapBack();
       }
     }
-    dragging = false; moved = false;
+    resetGesture();
   }, { passive: true });
+
+  // Without this, a gesture interrupted by the system (edge-swipe-back,
+  // control-centre pull, an incoming call, etc.) leaves `tracking`/`moved`
+  // stuck from the aborted gesture, and the next real touchstart can
+  // inherit stale state — this was the most likely cause of the reported
+  // "skips two days" bug. Always reset cleanly on cancel.
   wrap.addEventListener('touchcancel', () => {
-    dragging = false; moved = false;
+    const card = getCard();
+    if (card && !isAnimating) {
+      card.style.transition = 'transform 0.18s ease-out, opacity 0.18s ease-out';
+      card.style.transform = 'translateX(0)';
+      card.style.opacity = '1';
+    }
+    resetGesture();
   }, { passive: true });
+
   // Capture phase so this runs before the hero card's own onclick handler.
   wrap.addEventListener('click', e => {
     if (suppressClick) {
