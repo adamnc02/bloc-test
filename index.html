@@ -92,20 +92,17 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
-/* html/body are pinned to exactly fill the screen and can never scroll —
-   #content (inside #app) is the only scrollable element in the app shell.
-   This matters specifically on iOS standalone PWAs: CSS dvh (used here)
-   and the JS-measured viewport height (used for --app-height below) can
-   disagree by a pixel or two while the viewport is still settling right
-   after launch. If body is allowed any intrinsic scrollability at all,
-   that tiny mismatch becomes a real sliver of scroll room, and anything
-   anchored to the viewport (fixed OR absolute) renders wrong until that
-   sliver gets scrolled away. Locking html/body removes the possibility
-   of that mismatch ever mattering, at the source. */
+/* html/body can never scroll — #content (inside #app) is the only
+   scrollable element in the app shell. overflow: hidden alone is enough
+   to prevent any stray document scroll (see the #nav comment below for
+   why that mattered); position: fixed was tried here first but WebKit
+   gives `position: fixed` elements an automatic inset away from the
+   safe area by default, which — applied to the whole document — ate a
+   strip of dead space along the bottom edge. Plain overflow: hidden
+   avoids that, while still fully blocking scroll. */
 html {
   background: var(--bg);
-  position: fixed;
-  inset: 0;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -114,8 +111,7 @@ body {
   color: var(--text);
   font-family: var(--font-display);
   font-size: 14px;
-  position: fixed;
-  inset: 0;
+  height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
 }
