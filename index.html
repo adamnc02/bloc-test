@@ -855,10 +855,49 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
     document.documentElement.style.setProperty('--safe-bottom', measureEnv('safe-area-inset-bottom') + 'px');
     document.documentElement.style.setProperty('--safe-top', measureEnv('safe-area-inset-top') + 'px');
   }
+  // Bypasses calc(var(--safe-bottom)) entirely for #nav specifically and
+  // sets a literal pixel value via JS instead — in case WebKit is correctly
+  // updating the custom property but failing to repaint elements that
+  // reference it inside calc() without a scroll/compositing pass forcing
+  // it. Directly assigning element.style.bottom is a plain style mutation
+  // with no such known repaint-lag quirk.
+  function positionNavDirect() {
+    var nav = document.getElementById('nav');
+    if (!nav) return;
+    nav.style.bottom = (measureEnv('safe-area-inset-bottom') + 10) + 'px';
+  }
+  // TEMPORARY: live diagnostic readout — shows the actual numbers WebKit
+  // is using right now, so we can pinpoint exactly which value is wrong
+  // instead of redeploying and guessing again. Remove once resolved.
+  function updateDebugOverlay() {
+    var overlay = document.getElementById('debug-overlay');
+    var nav = document.getElementById('nav');
+    if (!overlay) return;
+    var vv = window.visualViewport;
+    var navRect = nav ? nav.getBoundingClientRect() : null;
+    var innerH = window.innerHeight;
+    overlay.textContent =
+      'innerH:' + innerH + ' vvH:' + (vv ? Math.round(vv.height) : 'n/a') + ' vvOffTop:' + (vv ? Math.round(vv.offsetTop) : 'n/a') + ' screenH:' + (window.screen ? window.screen.height : 'n/a') +
+      '\nsafeBot:' + measureEnv('safe-area-inset-bottom') + ' safeTop:' + measureEnv('safe-area-inset-top') + ' navBottomStyle:' + (nav ? nav.style.bottom : 'n/a') +
+      '\nnavRect.bottom:' + (navRect ? Math.round(navRect.bottom) : 'n/a') + ' gapBelowNav:' + (navRect ? Math.round(innerH - navRect.bottom) : 'n/a') + 'px (tap to refresh)';
+  }
   function measureAll() {
     setAppHeight();
     setSafeAreaVars();
+    positionNavDirect();
+    updateDebugOverlay();
   }
+  document.addEventListener('DOMContentLoaded', function() {
+    var overlay = document.getElementById('debug-overlay');
+    if (overlay) overlay.addEventListener('click', measureAll);
+    // Keep re-measuring for a few seconds after load in case anything
+    // settles later than the existing checkpoints catch.
+    var n = 0;
+    var iv = setInterval(function() {
+      measureAll();
+      if (++n > 10) clearInterval(iv);
+    }, 500);
+  });
   measureAll();
   // The very first reading above can itself land mid-launch-transition on
   // iOS standalone, before WebKit's handshake settles — so re-measure a
@@ -877,11 +916,11 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 </script>
 </head>
 <body data-theme="multi" data-mode="dark">
-<!-- TEMPORARY DEBUG BANNER — remove once caching is confirmed fixed.
-     If this exact token isn't visible after a deploy + cache clear, the
-     device is still loading an old cached copy, not this file. -->
-<div style="position:fixed;top:0;left:0;right:0;z-index:99999;background:#ff00aa;color:#fff;font-family:monospace;font-size:13px;font-weight:bold;text-align:center;padding:8px 4px;">
-  DEBUG BUILD TOKEN: BLOC-201554
+<!-- TEMPORARY DIAGNOSTIC OVERLAY — remove once the bottom-gap bug is found.
+     Shows the live, actual numbers WebKit is using right now, so we can
+     pinpoint exactly which value is wrong instead of guessing. -->
+<div id="debug-overlay" style="position:fixed;top:0;left:0;right:0;z-index:99999;background:#ff00aa;color:#fff;font-family:monospace;font-size:11px;line-height:1.5;font-weight:bold;text-align:left;padding:6px 8px;white-space:pre-wrap;">
+  loading…
 </div>
 <div id="app">
 
