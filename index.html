@@ -826,24 +826,52 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 // re-measuring on every event that could change it. #app then prefers
 // var(--app-height) over 100dvh, with 100dvh kept only as a fallback
 // for the brief instant before this script first runs.
+//
+// ── Safe-area inset fix ──────────────────────────────────────
+// --safe-bottom/--safe-top were defined as `env(safe-area-inset-*)`
+// read straight through a CSS custom property. That bridge has a known
+// WebKit bug where the value returned can be stale or simply wrong
+// (not just zero) — which matches a floating nav sitting too high and
+// a scroll container reserving too much bottom padding at the same
+// time, both fed by the same bad --safe-bottom number. The fix is the
+// same shape as the height fix above: measure the real value with a
+// DOM probe (an element with `height: env(safe-area-inset-bottom)` set
+// directly, not through a variable) and overwrite the custom property
+// with the resolved pixel value instead of trusting the live bridge.
 (function() {
   function setAppHeight() {
     var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
     document.documentElement.style.setProperty('--app-height', h + 'px');
   }
-  setAppHeight();
+  function measureEnv(prop) {
+    var el = document.createElement('div');
+    el.style.cssText = 'position:fixed;top:0;left:0;width:0;height:env(' + prop + ', 0px);visibility:hidden;pointer-events:none;';
+    document.documentElement.appendChild(el);
+    var val = el.offsetHeight;
+    document.documentElement.removeChild(el);
+    return val;
+  }
+  function setSafeAreaVars() {
+    document.documentElement.style.setProperty('--safe-bottom', measureEnv('safe-area-inset-bottom') + 'px');
+    document.documentElement.style.setProperty('--safe-top', measureEnv('safe-area-inset-top') + 'px');
+  }
+  function measureAll() {
+    setAppHeight();
+    setSafeAreaVars();
+  }
+  measureAll();
   // The very first reading above can itself land mid-launch-transition on
   // iOS standalone, before WebKit's handshake settles — so re-measure a
   // few more times shortly after load as a safety net. This is what used
   // to require a manual scroll; now it self-corrects automatically.
-  requestAnimationFrame(function() { requestAnimationFrame(setAppHeight); });
-  setTimeout(setAppHeight, 100);
-  setTimeout(setAppHeight, 400);
-  window.addEventListener('resize', setAppHeight);
-  window.addEventListener('orientationchange', setAppHeight);
-  window.addEventListener('pageshow', setAppHeight);
+  requestAnimationFrame(function() { requestAnimationFrame(measureAll); });
+  setTimeout(measureAll, 100);
+  setTimeout(measureAll, 400);
+  window.addEventListener('resize', measureAll);
+  window.addEventListener('orientationchange', measureAll);
+  window.addEventListener('pageshow', measureAll);
   if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', setAppHeight);
+    window.visualViewport.addEventListener('resize', measureAll);
   }
 })();
 </script>
