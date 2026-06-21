@@ -847,18 +847,24 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
     document.documentElement.removeChild(el);
     return val;
   }
-  // Confirmed via on-device diagnostic readout: window.innerHeight /
-  // visualViewport.height silently exclude the top safe-area inset on
-  // this device (screenH - innerH == safeTop, exactly), even though the
-  // page itself genuinely renders full-bleed behind the status bar. So
-  // --app-height was always ~safeTop px shorter than the real screen,
-  // and since #app's top edge is correctly anchored at the true top, the
-  // entire shortfall landed as dead space at the bottom. Adding the top
-  // inset back in corrects it, while still tracking visualViewport's
-  // legitimate shrink when the on-screen keyboard appears.
+  // Confirmed via two rounds of on-device diagnostics: window.innerHeight /
+  // visualViewport.height start out ~safeTop px short right after launch,
+  // then self-correct to the true full height a moment later (the original
+  // "settles after a beat" behavior this whole investigation started from —
+  // now backed by real numbers). Unconditionally adding safeTop back in
+  // was only correct for that early/short state; once it self-corrects,
+  // adding safeTop again overshoots past the real bottom edge. Capping at
+  // window.screen.height (which read identically — 956 — in both the
+  // short and the settled state) handles both cases without needing to
+  // know which one we're in, while still tracking visualViewport's
+  // legitimate shrink when the on-screen keyboard appears (which stays
+  // well under screen.height, so the cap never interferes with that).
   function setAppHeight() {
-    var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
-    h += measureEnv('safe-area-inset-top');
+    var measured = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+    var h = measured + measureEnv('safe-area-inset-top');
+    if (window.screen && window.screen.height) {
+      h = Math.min(h, window.screen.height);
+    }
     document.documentElement.style.setProperty('--app-height', h + 'px');
   }
   function setSafeAreaVars() {
