@@ -92,20 +92,36 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
-html { background: var(--bg); }
+/* html/body are pinned to exactly fill the screen and can never scroll —
+   #content (inside #app) is the only scrollable element in the app shell.
+   This matters specifically on iOS standalone PWAs: CSS dvh (used here)
+   and the JS-measured viewport height (used for --app-height below) can
+   disagree by a pixel or two while the viewport is still settling right
+   after launch. If body is allowed any intrinsic scrollability at all,
+   that tiny mismatch becomes a real sliver of scroll room, and anything
+   anchored to the viewport (fixed OR absolute) renders wrong until that
+   sliver gets scrolled away. Locking html/body removes the possibility
+   of that mismatch ever mattering, at the source. */
+html {
+  background: var(--bg);
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
 
 body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-display);
   font-size: 14px;
-  min-height: 100vh;
-  min-height: 100dvh;
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
   overscroll-behavior: none;
 }
 
 /* ── LAYOUT ─────────────────────────────── */
-#app { position: relative; display: flex; flex-direction: column; height: 100dvh; height: var(--app-height, 100dvh); }
+#app { display: flex; flex-direction: column; height: 100dvh; height: var(--app-height, 100dvh); }
 
 #content {
   flex: 1;
@@ -127,17 +143,15 @@ body {
    icon only; the active button's label reveals via the max-width/
    opacity transition on .nav-label. */
 #nav {
-  /* Anchored to #app (position: relative), NOT the native viewport.
-     iOS standalone PWAs have a well-known WKWebView bug where the
-     viewport used as the containing block for `position: fixed` is
-     stale on first paint (it settles a beat after launch) and isn't
-     recomputed until a real scroll/touch gesture forces WebKit to redo
-     fixed-position layout — hence the "floats too high until you scroll"
-     symptom. #app's height is instead driven by --app-height, a plain
-     JS-measured custom property (see the script above) that reacts
-     correctly to resize/visualViewport events without needing a scroll,
-     so anchoring #nav to #app via `absolute` sidesteps the bug entirely. */
-  position: absolute;
+  /* position: fixed is safe here because html/body above are locked and
+     can never scroll — there's no stray document scroll left for iOS's
+     fixed-position-vs-stale-viewport quirk to manifest against. (We tried
+     anchoring this to #app via `absolute` instead, but that was wrong:
+     #app still sits inside body, so if body itself were ever scrollable,
+     anything anchored to #app — not just truly `fixed` elements — would
+     scroll right along with it. Locking body is the actual fix; this can
+     go back to the simpler `fixed`.) */
+  position: fixed;
   left: 50%;
   bottom: calc(var(--safe-bottom) + 10px);
   transform: translateX(-50%);
