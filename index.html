@@ -73,11 +73,14 @@
 }
 
 /* ── Single-colour theme options ─────────────────────────── */
-[data-theme="teal"]   { --hero-1: #1D9E75; --hero-2: #085041; }
-[data-theme="blue"]   { --hero-1: #378ADD; --hero-2: #0C447C; }
-[data-theme="amber"]  { --hero-1: #EF9F27; --hero-2: #633806; }
-[data-theme="purple"] { --hero-1: #7F77DD; --hero-2: #3C3489; }
-[data-theme="mono"]   { --hero-1: #4a4a48; --hero-2: #232321; }
+[data-theme="turquoise"]    { --hero-1: #2BC7C4; --hero-2: #0B4F4E; }
+[data-theme="blue"]         { --hero-1: #378ADD; --hero-2: #0C447C; }
+[data-theme="amber"]        { --hero-1: #EF9F27; --hero-2: #633806; }
+[data-theme="purple"]       { --hero-1: #7F77DD; --hero-2: #3C3489; }
+[data-theme="teal"]         { --hero-1: #1D9E75; --hero-2: #085041; }
+[data-theme="yellow"]       { --hero-1: #E8D44D; --hero-2: #6B5A0A; }
+[data-theme="red"]          { --hero-1: #E24B4A; --hero-2: #6B1414; }
+[data-theme="mono"]         { --hero-1: #4a4a48; --hero-2: #232321; }
 
 /* ── Multi theme: distinct hero colour per page, matching mockup ── */
 [data-theme="multi"] [data-page="home"]      { --hero-1: #2BC7C4; --hero-2: #0B4F4E; }
@@ -102,7 +105,7 @@ body {
 }
 
 /* ── LAYOUT ─────────────────────────────── */
-#app { display: flex; flex-direction: column; height: 100dvh; }
+#app { display: flex; flex-direction: column; height: 100dvh; height: var(--app-height, 100dvh); }
 
 #content {
   flex: 1;
@@ -110,7 +113,7 @@ body {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   padding-top: var(--safe-top);
-  padding-bottom: var(--safe-bottom);
+  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 20px);
 }
 
 .screen { display: none; padding: 16px 16px 0; }
@@ -126,7 +129,7 @@ body {
 #nav {
   position: fixed;
   left: 50%;
-  bottom: var(--safe-bottom);
+  bottom: calc(var(--safe-bottom) + 10px);
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -786,6 +789,32 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 .theme-swatch-multi-preview { display: flex; height: 32px; border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
 .theme-swatch-multi-preview > div { flex: 1; }
 </style>
+<script>
+// ── Real viewport height fix ───────────────────────────────────
+// iOS WKWebView (standalone "Add to Home Screen" mode) has a known bug
+// where 100dvh is sometimes computed against a stale/incorrect viewport
+// on first paint, leaving dead space at the bottom until the user
+// scrolls and forces a recalculation. CSS dvh units can't be trusted
+// alone in this context, so we measure the real visual viewport height
+// in JS (most accurate via window.visualViewport, which also already
+// excludes the on-screen keyboard) and expose it as --app-height,
+// re-measuring on every event that could change it. #app then prefers
+// var(--app-height) over 100dvh, with 100dvh kept only as a fallback
+// for the brief instant before this script first runs.
+(function() {
+  function setAppHeight() {
+    var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+    document.documentElement.style.setProperty('--app-height', h + 'px');
+  }
+  setAppHeight();
+  window.addEventListener('resize', setAppHeight);
+  window.addEventListener('orientationchange', setAppHeight);
+  window.addEventListener('pageshow', setAppHeight);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', setAppHeight);
+  }
+})();
+</script>
 </head>
 <body data-theme="multi" data-mode="dark">
 <div id="app">
@@ -884,7 +913,7 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
       <div class="card" style="margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <span style="font-size:13px;color:var(--text2);">BLOC Training App</span>
-          <span class="badge badge-green">v5.06</span>
+          <span class="badge badge-green">v5.07</span>
         </div>
       </div>
 
@@ -6353,12 +6382,15 @@ function getISOWeek(dateStr) {
 // [data-theme="multi"] [data-page="..."] CSS rules. The single-colour
 // options below override --hero-1/--hero-2 globally for every page.
 const THEMES = [
-  { id:'multi',  label:'Multi',  preview:'multi' },
-  { id:'teal',   label:'Teal',   c1:'#2f8f6f', c2:'#1a4f3d' },
-  { id:'blue',   label:'Blue',   c1:'#3f7fd9', c2:'#1e3f73' },
-  { id:'amber',  label:'Amber',  c1:'#d9943f', c2:'#7a4d1a' },
-  { id:'purple', label:'Purple', c1:'#9156d9', c2:'#4a2873' },
-  { id:'mono',   label:'Mono',   c1:'#3a3a3a', c2:'#1a1a1a' },
+  { id:'multi',       label:'Multi',      preview:'multi' },
+  { id:'teal',        label:'Teal',       c1:'#2f8f6f', c2:'#1a4f3d' },
+  { id:'blue',        label:'Blue',       c1:'#3f7fd9', c2:'#1e3f73' },
+  { id:'amber',       label:'Amber',      c1:'#d9943f', c2:'#7a4d1a' },
+  { id:'turquoise',   label:'Turquoise',  c1:'#2bc7c4', c2:'#1a4f3d' },
+  { id:'yellow',      label:'Yellow',     c1:'#e8d44d', c2:'#0b4f4e' },
+  { id:'red',         label:'Red',        c1:'#e24b4a', c2:'#6b1414' },
+  { id:'purple',      label:'Purple',     c1:'#9156d9', c2:'#4a2873' },
+  { id:'mono',        label:'Mono',       c1:'#3a3a3a', c2:'#1a1a1a' },
 ];
 
 function setTheme(themeId) {
