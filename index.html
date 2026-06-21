@@ -93,16 +93,15 @@
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
 /* html/body can never scroll — #content (inside #app) is the only
-   scrollable element in the app shell. overflow: hidden alone is enough
-   to prevent any stray document scroll (see the #nav comment below for
-   why that mattered); position: fixed was tried here first but WebKit
-   gives `position: fixed` elements an automatic inset away from the
-   safe area by default, which — applied to the whole document — ate a
-   strip of dead space along the bottom edge. Plain overflow: hidden
-   avoids that, while still fully blocking scroll. */
+   scrollable element in the app shell. Sized with var(--app-height) —
+   the same JS-measured value #app already uses below — rather than raw
+   100dvh: the comment on that script explains why bare dvh alone can't
+   be trusted on iOS standalone (leaves dead space at the bottom on first
+   paint), and that applies here just as much as it does to #app. */
 html {
   background: var(--bg);
   height: 100dvh;
+  height: var(--app-height, 100dvh);
   overflow: hidden;
 }
 
@@ -112,12 +111,13 @@ body {
   font-family: var(--font-display);
   font-size: 14px;
   height: 100dvh;
+  height: var(--app-height, 100dvh);
   overflow: hidden;
   overscroll-behavior: none;
 }
 
 /* ── LAYOUT ─────────────────────────────── */
-#app { display: flex; flex-direction: column; height: 100dvh; height: var(--app-height, 100dvh); }
+#app { position: relative; display: flex; flex-direction: column; height: 100dvh; height: var(--app-height, 100dvh); }
 
 #content {
   flex: 1;
@@ -139,15 +139,20 @@ body {
    icon only; the active button's label reveals via the max-width/
    opacity transition on .nav-label. */
 #nav {
-  /* position: fixed is safe here because html/body above are locked and
-     can never scroll — there's no stray document scroll left for iOS's
-     fixed-position-vs-stale-viewport quirk to manifest against. (We tried
-     anchoring this to #app via `absolute` instead, but that was wrong:
-     #app still sits inside body, so if body itself were ever scrollable,
-     anything anchored to #app — not just truly `fixed` elements — would
-     scroll right along with it. Locking body is the actual fix; this can
-     go back to the simpler `fixed`.) */
-  position: fixed;
+  /* Anchored to #app (position: relative) rather than the native
+     viewport. #nav used to be `position: fixed`, which on iOS standalone
+     relies on WebKit's own internal sense of the viewport — separate
+     from any CSS/JS value — and that internal reference is stale on
+     first paint until a real scroll forces a recompute. Locking
+     html/body's scroll (above) removed the scroll gesture that used to
+     fix this, so `fixed` was left permanently stuck. Anchoring to #app
+     instead means #nav just follows normal CSS layout against #app's
+     box, which is driven by --app-height — the same JS-measured value
+     used everywhere else — and that already updates itself via the
+     resize/visualViewport listeners with no scroll needed. html, body,
+     #app, and #nav are now all sized from the same single source, so
+     there's no mismatch left for any of these bugs to come from. */
+  position: absolute;
   left: 50%;
   bottom: calc(var(--safe-bottom) + 10px);
   transform: translateX(-50%);
