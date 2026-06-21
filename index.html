@@ -154,7 +154,7 @@ body {
      there's no mismatch left for any of these bugs to come from. */
   position: absolute;
   left: 50%;
-  bottom: calc(var(--safe-bottom) + 10px);
+  bottom: calc(var(--safe-bottom) + 4px);
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -880,36 +880,18 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
   function positionNavDirect() {
     var nav = document.getElementById('nav');
     if (!nav) return;
-    nav.style.bottom = (measureEnv('safe-area-inset-bottom') + 10) + 'px';
-  }
-  // TEMPORARY: live diagnostic readout — shows the actual numbers WebKit
-  // is using right now, so we can pinpoint exactly which value is wrong
-  // instead of redeploying and guessing again. Remove once resolved.
-  function updateDebugOverlay() {
-    var overlay = document.getElementById('debug-overlay');
-    var nav = document.getElementById('nav');
-    if (!overlay) return;
-    var vv = window.visualViewport;
-    var navRect = nav ? nav.getBoundingClientRect() : null;
-    var innerH = window.innerHeight;
-    var screenH = window.screen ? window.screen.height : null;
-    var appHeight = getComputedStyle(document.documentElement).getPropertyValue('--app-height');
-    overlay.textContent =
-      'innerH:' + innerH + ' vvH:' + (vv ? Math.round(vv.height) : 'n/a') + ' screenH:' + screenH + ' appH:' + appHeight +
-      '\nsafeBot:' + measureEnv('safe-area-inset-bottom') + ' safeTop:' + measureEnv('safe-area-inset-top') + ' navBottomStyle:' + (nav ? nav.style.bottom : 'n/a') +
-      '\nnavRect.bottom:' + (navRect ? Math.round(navRect.bottom) : 'n/a') + ' gapVsScreenH:' + (navRect && screenH ? Math.round(screenH - navRect.bottom) : 'n/a') + 'px (tap to refresh)';
+    nav.style.bottom = (measureEnv('safe-area-inset-bottom') + 4) + 'px';
   }
   function measureAll() {
     setAppHeight();
     setSafeAreaVars();
     positionNavDirect();
-    updateDebugOverlay();
   }
+  // window.innerHeight/visualViewport.height were confirmed (via on-device
+  // testing) to start short right after a standalone launch and settle to
+  // the true value a moment later, so keep re-measuring for a few seconds
+  // after load to catch that settling without needing a manual scroll.
   document.addEventListener('DOMContentLoaded', function() {
-    var overlay = document.getElementById('debug-overlay');
-    if (overlay) overlay.addEventListener('click', measureAll);
-    // Keep re-measuring for a few seconds after load in case anything
-    // settles later than the existing checkpoints catch.
     var n = 0;
     var iv = setInterval(function() {
       measureAll();
@@ -934,12 +916,6 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 </script>
 </head>
 <body data-theme="multi" data-mode="dark">
-<!-- TEMPORARY DIAGNOSTIC OVERLAY — remove once the bottom-gap bug is found.
-     Shows the live, actual numbers WebKit is using right now, so we can
-     pinpoint exactly which value is wrong instead of guessing. -->
-<div id="debug-overlay" style="position:fixed;top:0;left:0;right:0;z-index:99999;background:#ff00aa;color:#fff;font-family:monospace;font-size:11px;line-height:1.5;font-weight:bold;text-align:left;padding:6px 8px;white-space:pre-wrap;">
-  loading…
-</div>
 <div id="app">
 
   <div id="content">
