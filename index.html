@@ -877,7 +877,14 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 </script>
 </head>
 <body data-theme="multi" data-mode="dark">
+<!-- TEMPORARY DEBUG BANNER — remove once caching is confirmed fixed.
+     If this exact token isn't visible after a deploy + cache clear, the
+     device is still loading an old cached copy, not this file. -->
+<div style="position:fixed;top:0;left:0;right:0;z-index:99999;background:#ff00aa;color:#fff;font-family:monospace;font-size:13px;font-weight:bold;text-align:center;padding:8px 4px;">
+  DEBUG BUILD TOKEN: BLOC-201554
+</div>
 <div id="app">
+
   <div id="content">
 
     <!-- ════════════════════════════════════════
