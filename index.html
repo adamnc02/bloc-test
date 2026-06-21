@@ -839,10 +839,6 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 // directly, not through a variable) and overwrite the custom property
 // with the resolved pixel value instead of trusting the live bridge.
 (function() {
-  function setAppHeight() {
-    var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
-    document.documentElement.style.setProperty('--app-height', h + 'px');
-  }
   function measureEnv(prop) {
     var el = document.createElement('div');
     el.style.cssText = 'position:fixed;top:0;left:0;width:0;height:env(' + prop + ', 0px);visibility:hidden;pointer-events:none;';
@@ -850,6 +846,20 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
     var val = el.offsetHeight;
     document.documentElement.removeChild(el);
     return val;
+  }
+  // Confirmed via on-device diagnostic readout: window.innerHeight /
+  // visualViewport.height silently exclude the top safe-area inset on
+  // this device (screenH - innerH == safeTop, exactly), even though the
+  // page itself genuinely renders full-bleed behind the status bar. So
+  // --app-height was always ~safeTop px shorter than the real screen,
+  // and since #app's top edge is correctly anchored at the true top, the
+  // entire shortfall landed as dead space at the bottom. Adding the top
+  // inset back in corrects it, while still tracking visualViewport's
+  // legitimate shrink when the on-screen keyboard appears.
+  function setAppHeight() {
+    var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+    h += measureEnv('safe-area-inset-top');
+    document.documentElement.style.setProperty('--app-height', h + 'px');
   }
   function setSafeAreaVars() {
     document.documentElement.style.setProperty('--safe-bottom', measureEnv('safe-area-inset-bottom') + 'px');
@@ -876,10 +886,12 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
     var vv = window.visualViewport;
     var navRect = nav ? nav.getBoundingClientRect() : null;
     var innerH = window.innerHeight;
+    var screenH = window.screen ? window.screen.height : null;
+    var appHeight = getComputedStyle(document.documentElement).getPropertyValue('--app-height');
     overlay.textContent =
-      'innerH:' + innerH + ' vvH:' + (vv ? Math.round(vv.height) : 'n/a') + ' vvOffTop:' + (vv ? Math.round(vv.offsetTop) : 'n/a') + ' screenH:' + (window.screen ? window.screen.height : 'n/a') +
+      'innerH:' + innerH + ' vvH:' + (vv ? Math.round(vv.height) : 'n/a') + ' screenH:' + screenH + ' appH:' + appHeight +
       '\nsafeBot:' + measureEnv('safe-area-inset-bottom') + ' safeTop:' + measureEnv('safe-area-inset-top') + ' navBottomStyle:' + (nav ? nav.style.bottom : 'n/a') +
-      '\nnavRect.bottom:' + (navRect ? Math.round(navRect.bottom) : 'n/a') + ' gapBelowNav:' + (navRect ? Math.round(innerH - navRect.bottom) : 'n/a') + 'px (tap to refresh)';
+      '\nnavRect.bottom:' + (navRect ? Math.round(navRect.bottom) : 'n/a') + ' gapVsScreenH:' + (navRect && screenH ? Math.round(screenH - navRect.bottom) : 'n/a') + 'px (tap to refresh)';
   }
   function measureAll() {
     setAppHeight();
