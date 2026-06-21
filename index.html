@@ -11,22 +11,24 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
-  /* ── Surfaces (sampled from approved mockup screenshots) ──── */
-  --bg: #1a1a19;
-  --surface: #262624;
-  --surface2: #302f2e;
-  --surface3: #3a3937;
-  --border: rgba(255,255,255,0.08);
-  --border2: rgba(255,255,255,0.14);
-  --text: #f5f4f0;
-  --text2: #8c8a84;
-  --text3: #67655f;
+  /* ── Surfaces — blue-tinted dark scheme, mirrors [data-mode="light"] ── */
+  --bg: #0f1620;
+  --surface: #161f2c;
+  --surface2: #1d2837;
+  --surface3: #253142;
+  --border: rgba(150,180,210,0.10);
+  --border2: rgba(150,180,210,0.18);
+  --text: #eef3f8;
+  --text2: #9fb0c0;
+  --text3: #6c7e90;
+  --nav-inactive: #d8e2ec;
   --accent: #1D9E75;
   --accent2: #17a884;
   --red: #E24B4A;
   --amber: #EF9F27;
   --blue: #378ADD;
   --purple: #7F77DD;
+  --ice-blue: #8FE3F0;
   --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   /* DM Mono retired app-wide — Inter is now the only typeface in the app.
      --font-mono is kept (rather than removed) so every existing call site
@@ -36,7 +38,7 @@
   --r: 12px;
   --r-sm: 8px;
   --r-lg: 20px;
-  --nav-h: 72px;
+  --nav-h: 54px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
 
@@ -49,6 +51,27 @@
   --hero-2: #085041;
 }
 
+/* ── Light mode ───────────────────────────────────────────────
+   Toggled via [data-mode="light"] on <body> (default is dark —
+   the original palette above is untouched). Neutral surface/text/
+   border tokens are reversed into a blue-tinted light scheme;
+   accent/hero colours are intentionally left unchanged so each
+   page's identity colour stays consistent across modes. */
+[data-mode="light"] {
+  --bg: #e7edf4;
+  --surface: #f2f5f9;
+  --surface2: #fafbfd;
+  --surface3: #ffffff;
+  --border: rgba(20,40,65,0.10);
+  --border2: rgba(20,40,65,0.18);
+  --text: #16222e;
+  --text2: #51606e;
+  --text3: #7c8a98;
+  /* --nav-inactive intentionally NOT overridden here — the floating nav
+     bar keeps its dark background in both modes, so the near-white icon
+     colour from :root stays correct either way. */
+}
+
 /* ── Single-colour theme options ─────────────────────────── */
 [data-theme="teal"]   { --hero-1: #1D9E75; --hero-2: #085041; }
 [data-theme="blue"]   { --hero-1: #378ADD; --hero-2: #0C447C; }
@@ -57,14 +80,16 @@
 [data-theme="mono"]   { --hero-1: #4a4a48; --hero-2: #232321; }
 
 /* ── Multi theme: distinct hero colour per page, matching mockup ── */
-[data-theme="multi"] [data-page="home"]      { --hero-1: #5FC4E8; --hero-2: #1A5C7A; }
+[data-theme="multi"] [data-page="home"]      { --hero-1: #2BC7C4; --hero-2: #0B4F4E; }
 [data-theme="multi"] [data-page="plan"]      { --hero-1: #378ADD; --hero-2: #0C447C; }
-[data-theme="multi"] [data-page="train"]     { --hero-1: #378ADD; --hero-2: #0C447C; }
+[data-theme="multi"] [data-page="train"]     { --hero-1: #E8D44D; --hero-2: #6B5A0A; }
 [data-theme="multi"] [data-page="body"]      { --hero-1: #1D9E75; --hero-2: #085041; }
 [data-theme="multi"] [data-page="nutrition"] { --hero-1: #EF9F27; --hero-2: #633806; }
 [data-theme="multi"] [data-page="goals"]     { --hero-1: #E24B4A; --hero-2: #6B1414; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html { background: var(--bg); }
 
 body {
   background: var(--bg);
@@ -85,59 +110,88 @@ body {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   padding-top: var(--safe-top);
-  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 16px);
+  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 16px + 18px);
 }
 
 .screen { display: none; padding: 16px 16px 0; }
 .screen.active { display: block; }
 
-/* ── NAV ─────────────────────────────────── */
+/* ── NAV ─────────────────────────────────────────────────────
+   Floating pill bottom nav. #nav-pill is one shared highlight
+   element that JS (positionNavPill(), see NAVIGATION) slides and
+   resizes behind whichever button is .active — that produces the
+   morphing-bubble animation between screens. Inactive buttons show
+   icon only; the active button's label reveals via the max-width/
+   opacity transition on .nav-label. */
 #nav {
   position: fixed;
-  bottom: 0;
-  left: 0; right: 0;
-  min-height: var(--nav-h);
-  background: rgba(10,10,10,0.85);
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + 10px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: calc(100% - 24px);
+  background: rgba(15,22,32,0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-top: 0.5px solid var(--border2);
-  display: flex;
-  align-items: stretch;
-  padding-bottom: var(--safe-bottom);
+  border: 0.5px solid var(--border2);
+  border-radius: 999px;
+  padding: 5px;
+  box-shadow: 0 14px 32px rgba(0,0,0,0.38), 0 2px 10px rgba(0,0,0,0.22);
   z-index: 100;
 }
 
+#nav-pill {
+  position: absolute;
+  top: 5px;
+  left: 0;
+  height: 44px;
+  width: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  transform: translateX(0);
+  z-index: 0;
+  pointer-events: none;
+}
+
 .nav-btn {
-  flex: 1;
-  min-width: 0;
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  height: 44px;
+  padding: 0 9px;
+  border-radius: 999px;
   background: none;
   border: none;
-  border-radius: var(--r-sm);
-  color: var(--text3);
+  color: var(--nav-inactive);
   font-family: var(--font-display);
-  font-size: 10px;
-  font-weight: 500;
+  font-size: 12.5px;
+  font-weight: 600;
   cursor: pointer;
-  padding: 9px 4px;
-  margin: 4px 2px;
-  transition: color 0.15s, background 0.15s;
-  letter-spacing: 0.02em;
-}
-.nav-btn:active { background: rgba(255,255,255,0.06); }
-.nav-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
-.nav-btn span {
-  display: block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  letter-spacing: -0.01em;
+  transition: color 0.3s ease;
 }
-.nav-btn.active { color: var(--accent); }
+.nav-btn:active svg { transform: scale(0.88); }
+.nav-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; transition: transform 0.2s ease; }
+.nav-btn .nav-label {
+  display: inline-block;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  margin-left: 0;
+  transition: max-width 0.38s cubic-bezier(.34,1.56,.64,1), opacity 0.22s ease, margin-left 0.38s cubic-bezier(.34,1.56,.64,1);
+}
+.nav-btn.active { color: var(--bg); }
+.nav-btn.active .nav-label {
+  max-width: 90px;
+  opacity: 1;
+  margin-left: 6px;
+}
 
 /* ── TYPOGRAPHY ──────────────────────────── */
 .page-header {
@@ -221,6 +275,23 @@ h3 {
   border-radius: 50%;
   background: rgba(255,255,255,0.05);
   z-index: -1;
+}
+/* Progress hero swipe deck: every slide (active cycle, weight/volume
+   line charts, steps/kcal bar charts) is locked to the height of slide 1
+   (Active Cycle) via a JS-measured CSS var, so the card doesn't grow for
+   tall slides or shrink for short ones. Slides with less content center
+   their main content vertically in the extra space. */
+#progress-hero-wrap .hero-card {
+  display: flex;
+  flex-direction: column;
+  min-height: var(--hero-fixed-h, auto);
+}
+#progress-hero-wrap .hero-chart-fill {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
 }
 .hero-tappable { cursor: pointer; }
 .hero-tappable:active { opacity: 0.92; }
@@ -332,6 +403,31 @@ h3 {
   font-size: 11.5px;
   color: rgba(255,255,255,0.78);
   z-index: 2;
+}
+
+/* ── PROGRESS HERO DOTS ──────────────────────
+   Swipe-deck page indicator below the progress hero card. Inactive dots
+   look recessed/shadowed; the active one is a solid filled white dot. */
+#progress-hero-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 2px;
+}
+.hero-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--surface3);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.5), inset 0 -1px 0 rgba(255,255,255,0.04);
+  cursor: pointer;
+  transition: background 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+.hero-dot.active {
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+  transform: scale(1.25);
 }
 
 /* ── BUTTONS ─────────────────────────────── */
@@ -691,7 +787,7 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 .theme-swatch-multi-preview > div { flex: 1; }
 </style>
 </head>
-<body data-theme="multi">
+<body data-theme="multi" data-mode="dark">
 <div id="app">
   <div id="content">
 
@@ -701,39 +797,32 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
     <div class="screen" id="screen-home">
       <div id="home-date" style="display:none;"></div>
 
-      <!-- Active cycle card -->
-      <div class="section-title" style="margin-top:0;">Active Cycle</div>
-      <div id="home-cycle" style="margin-bottom:4px;"></div>
+      <!-- Active cycle hero + swipeable chart deck (cycle overview, weight
+           over time, volume over time, steps vs goal, kcal vs goal) -->
+      <div id="progress-hero-wrap"><div id="progress-hero-card"></div></div>
+      <div id="progress-hero-dots"></div>
 
       <!-- Body weight + peak insight -->
-      <div class="section-title" style="margin-top:16px;">Body Weight</div>
+      <div class="section-title" style="margin-top:16px;">Insights</div>
       <div id="home-body" style="margin-bottom:4px;"></div>
 
-      <!-- Volume over time (moved here from Plan page) -->
-      <div id="home-volume-chart" style="margin-bottom:4px;"></div>
-
-      <!-- Factor charts + weekly table -->
+      <!-- Weekly summary table -->
+      <div class="section-title" style="margin-top:16px;">Weekly Summary</div>
       <div id="home-progress-charts" style="margin-bottom:4px;"></div>
 
-      <!-- Steps -->
+      <!-- Steps + Nutrition, merged into one statistics card with a single toggle -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;margin-bottom:6px;">
-        <div class="section-title" style="margin:0;">Steps</div>
+        <div class="section-title" style="margin:0;">Statistics</div>
         <div style="display:flex;background:var(--surface2);border-radius:6px;padding:2px;gap:1px;">
-          <button id="steps-tog-today" onclick="setHomeToggle('steps','today')" style="padding:3px 8px;border-radius:4px;border:none;font-size:10px;cursor:pointer;background:transparent;color:var(--text3);font-family:var(--font-mono);">Today</button>
-          <button id="steps-tog-avg" onclick="setHomeToggle('steps','avg')" style="padding:3px 8px;border-radius:4px;border:none;font-size:10px;cursor:pointer;background:var(--surface);color:var(--text);font-family:var(--font-mono);">7-day</button>
-        </div>
-      </div>
-      <div id="home-steps" style="margin-bottom:4px;"></div>
-
-      <!-- Nutrition -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;margin-bottom:6px;">
-        <div class="section-title" style="margin:0;">Nutrition</div>
-        <div style="display:flex;background:var(--surface2);border-radius:6px;padding:2px;gap:1px;">
-          <button id="nutr-tog-today" onclick="setHomeToggle('nutr','today')" style="padding:3px 8px;border-radius:4px;border:none;font-size:10px;cursor:pointer;background:transparent;color:var(--text3);font-family:var(--font-mono);">Today</button>
-          <button id="nutr-tog-avg" onclick="setHomeToggle('nutr','avg')" style="padding:3px 8px;border-radius:4px;border:none;font-size:10px;cursor:pointer;background:var(--surface);color:var(--text);font-family:var(--font-mono);">7-day</button>
+          <button id="nutr-tog-today" onclick="setHomeNutrToggle('today')" style="padding:3px 8px;border-radius:4px;border:none;font-size:10px;cursor:pointer;background:transparent;color:var(--text3);font-family:var(--font-mono);">Today</button>
+          <button id="nutr-tog-avg" onclick="setHomeNutrToggle('avg')" style="padding:3px 8px;border-radius:4px;border:none;font-size:10px;cursor:pointer;background:var(--surface);color:var(--text);font-family:var(--font-mono);">7-day</button>
         </div>
       </div>
       <div id="home-nutrition" style="margin-bottom:4px;"></div>
+
+      <!-- Weekly macro split (moved here from the Nutrition tab) -->
+      <div class="section-title" style="margin-top:16px;">Weekly Macro Split</div>
+      <div id="home-nutr-pies" style="margin-bottom:4px;"></div>
     </div>
 
     <!-- ════════════════════════════════════════
@@ -795,11 +884,20 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
       <div class="card" style="margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <span style="font-size:13px;color:var(--text2);">BLOC Training App</span>
-          <span class="badge badge-green">v5.01</span>
+          <span class="badge badge-green">v5.06</span>
         </div>
       </div>
 
       <div class="section-title">Appearance</div>
+      <div class="card" style="margin-bottom:10px;">
+        <div style="font-family:var(--font-display);font-size:14px;font-weight:700;margin-bottom:6px;">Mode</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:14px;">Dark is the default. Light reverses the app into a blue-tinted light scheme.</div>
+        <div class="toggle-row" id="mode-toggle-row" style="margin-bottom:0;">
+          <button class="toggle-btn active" data-mode="dark" onclick="setMode('dark')">Dark</button>
+          <button class="toggle-btn" data-mode="light" onclick="setMode('light')">Light</button>
+        </div>
+      </div>
+
       <div class="card" style="margin-bottom:10px;">
         <div style="font-family:var(--font-display);font-size:14px;font-weight:700;margin-bottom:6px;">Theme</div>
         <div style="font-size:12px;color:var(--text2);margin-bottom:14px;">Choose a single accent colour for every page, or let each page have its own colour.</div>
@@ -889,56 +987,52 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
          SCREEN 4: NUTRITION
     ═══════════════════════════════════════════ -->
     <div class="screen" id="screen-nutrition">
-      <div class="toggle-row">
-        <button class="toggle-btn active" id="nutr-tab-day" onclick="switchNutrTab('day')">Daily</button>
-        <button class="toggle-btn" id="nutr-tab-week" onclick="switchNutrTab('week')">Weekly</button>
-      </div>
+      <!-- Hero: kcal + macros, swipeable left/right between days -->
+      <div id="nutr-hero-wrap"><div id="nutr-hero-card"></div></div>
 
-      <!-- Daily view -->
-      <div id="nutr-daily-view">
-        <!-- Hero: kcal + macros, swipeable left/right between days -->
-        <div id="nutr-hero-wrap"><div id="nutr-hero-card"></div></div>
-
-        <!-- Diary -->
-        <div id="nutr-diary"></div>
-      </div>
-
-      <div id="nutr-weekly-view" style="display:none;"></div>
+      <!-- Diary -->
+      <div id="nutr-diary"></div>
     </div>
+
 
   </div><!-- /content -->
 
   <!-- ════════════════════════════════════════
        BOTTOM NAV
+       Floating pill nav. #nav-pill is a single shared highlight that
+       positionNavPill() (see NAVIGATION in the script) slides/resizes
+       behind whichever button is .active. Inactive buttons show icon
+       only; .nav-label reveals on the active button via CSS transition.
   ═══════════════════════════════════════════ -->
   <nav id="nav">
+    <div id="nav-pill"></div>
     <button class="nav-btn active" id="nav-home" onclick="showScreen('home')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="9" rx="0.5"/><rect x="10" y="7" width="4" height="14" rx="0.5"/><rect x="17" y="3" width="4" height="18" rx="0.5"/></svg>
-      <span>progress</span>
+      <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="12" width="4" height="9" rx="0.5"/><rect x="10" y="7" width="4" height="14" rx="0.5"/><rect x="17" y="3" width="4" height="18" rx="0.5"/></svg>
+      <span class="nav-label">Progress</span>
     </button>
     <button class="nav-btn" id="nav-plan" onclick="showScreen('plan')">
-      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      <span>plan</span>
+      <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span class="nav-label">Plan</span>
     </button>
     <button class="nav-btn" id="nav-train" onclick="showScreen('train')">
-      <svg viewBox="0 0 24 24"><path d="M6 4v16M18 4v16M3 8h4M17 8h4M3 16h4M17 16h4"/></svg>
-      <span>train</span>
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M5 12h14"/><rect x="2" y="9" width="2" height="6" rx="0.5"/><rect x="20" y="9" width="2" height="6" rx="0.5"/><rect x="5" y="7" width="2" height="10" rx="0.5"/><rect x="17" y="7" width="2" height="10" rx="0.5"/></svg>
+      <span class="nav-label">Train</span>
     </button>
     <button class="nav-btn" id="nav-body" onclick="showScreen('body')">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><path d="M12 8v6M9 11h6M9 22l3-4 3 4"/></svg>
-      <span>body</span>
+      <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="7" r="3.5"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>
+      <span class="nav-label">Body</span>
     </button>
     <button class="nav-btn" id="nav-nutrition" onclick="showScreen('nutrition')">
-      <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2"/></svg>
-      <span>nutrition</span>
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M5 3v6a2 2 0 0 0 4 0V3M7 3v18"/><path d="M17 3c-2 0-3 2-3 5s1 4 3 4v9"/></svg>
+      <span class="nav-label">Nutrition</span>
     </button>
     <button class="nav-btn" id="nav-goals" onclick="showScreen('goals')">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" style="fill:currentColor"/></svg>
-      <span>goals</span>
+      <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" style="fill:currentColor"/></svg>
+      <span class="nav-label">Goals</span>
     </button>
     <button class="nav-btn" id="nav-settings" onclick="showScreen('settings')">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      <span>settings</span>
+      <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span class="nav-label">Settings</span>
     </button>
   </nav>
 </div>
@@ -1057,7 +1151,7 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
     </div>
     <div style="display:flex;gap:8px;margin-top:4px;">
       <button class="btn btn-block" style="flex:1;" onclick="nutrPickDate(getLocalToday());closeModal('modal-nutr-date');">Today</button>
-      <button class="btn btn-block" style="flex:1;" onclick="(function(){const d=new Date();d.setDate(d.getDate()-1);nutrPickDate(d.toISOString().split('T')[0]);closeModal('modal-nutr-date');})();">Yesterday</button>
+      <button class="btn btn-block" style="flex:1;" onclick="(function(){const d=new Date();d.setDate(d.getDate()-1);nutrPickDate(toLocalDateStr(d));closeModal('modal-nutr-date');})();">Yesterday</button>
     </div>
   </div>
 </div>
@@ -1515,6 +1609,21 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 </script>
 <script>
 // ════════════════════════════════════════════════
+// DATE HELPERS
+// ════════════════════════════════════════════════
+// Builds a YYYY-MM-DD string from a Date's LOCAL calendar date.
+// Use this everywhere a date is turned into a storage/lookup key —
+// never `.toISOString().split('T')[0]`, which converts to UTC first
+// and can silently land on the wrong day (or the same day twice)
+// depending on the user's timezone offset.
+function toLocalDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// ════════════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════════════
 let state = {
@@ -1562,6 +1671,8 @@ function load() {
   if (!state.recipes) state.recipes = [];
   if (!state.theme) state.theme = 'multi';
   document.body.setAttribute('data-theme', state.theme);
+  if (!state.mode) state.mode = 'dark';
+  document.body.setAttribute('data-mode', state.mode);
 
   // ── Migrate exercises: add stable id and order fields ──────────────────
   // Old trainLogs keys used positional index: macroId_week_day_exIdx_setIdx
@@ -1618,6 +1729,7 @@ function migrateExerciseIds() {
 }
 
 load();
+requestAnimationFrame(() => requestAnimationFrame(positionNavPill));
 
 // ════════════════════════════════════════════════
 // NAVIGATION
@@ -1627,6 +1739,8 @@ function showScreen(name) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
   document.getElementById('nav-' + name).classList.add('active');
+  animateNavPill();
+  updateNavPillColor(name);
   if (name === 'home') renderHome();
   if (name === 'plan') renderPlan();
   if (name === 'train') renderTrain();
@@ -1636,11 +1750,78 @@ function showScreen(name) {
   if (name === 'goals') renderGoals();
 }
 
+// Reads the --hero-1/--hero-2 a given page's hero card would actually use,
+// by building an invisible offscreen probe with the same data-page attribute
+// and letting it inherit the real data-theme cascade from <body>. This way
+// the nav pill always matches hero cards exactly — same CSS rules, zero
+// duplicated color maps to keep in sync.
+function getHeroColorsForPage(page) {
+  const probe = document.createElement('div');
+  probe.className = 'hero-card';
+  probe.dataset.page = page;
+  probe.style.cssText = 'position:absolute;width:0;height:0;padding:0;border:0;overflow:hidden;visibility:hidden;pointer-events:none;';
+  document.body.appendChild(probe);
+  const cs = getComputedStyle(probe);
+  const c1 = cs.getPropertyValue('--hero-1').trim();
+  const c2 = cs.getPropertyValue('--hero-2').trim();
+  document.body.removeChild(probe);
+  return { c1, c2 };
+}
+
+// Tints the shared nav pill to match whichever page is now active, using
+// the exact same --hero-1/--hero-2 colours as that page's hero card
+// (settings has no hero card, so it falls through to the theme default —
+// getHeroColorsForPage still resolves correctly since the CSS variables
+// cascade from :root/[data-theme] regardless of data-page).
+function updateNavPillColor(page) {
+  const pill = document.getElementById('nav-pill');
+  if (!pill) return;
+  const { c1, c2 } = getHeroColorsForPage(page);
+  if (c1 && c2) pill.style.background = `linear-gradient(150deg, ${c1}, ${c2})`;
+}
+
+// Sizes/positions the shared #nav-pill highlight to exactly match whatever
+// .nav-btn is currently .active right now. offsetLeft/offsetWidth are read
+// relative to #nav (its nearest positioned ancestor), so this stays correct
+// regardless of where the pill nav itself sits on screen.
+function positionNavPill() {
+  const nav = document.getElementById('nav');
+  const pill = document.getElementById('nav-pill');
+  const active = nav && nav.querySelector('.nav-btn.active');
+  if (!nav || !pill || !active) return;
+  pill.style.width = active.offsetWidth + 'px';
+  pill.style.transform = `translateX(${active.offsetLeft}px)`;
+}
+
+// The active button's width/position aren't static — they're mid-transition
+// (the label is expanding/collapsing via CSS, which changes the flex layout
+// of every button in the row). Reading offsetWidth/offsetLeft just once,
+// synchronously after toggling .active, catches the layout still at its
+// pre-transition (icon-only) size — the pill ends up too small. Instead,
+// re-measure every frame for the duration of that CSS transition so the
+// pill always exactly matches the real, currently-animating layout.
+let _navPillAnimId = null;
+function animateNavPill() {
+  if (_navPillAnimId) cancelAnimationFrame(_navPillAnimId);
+  const start = performance.now();
+  const duration = 420; // covers the .nav-label transition (380ms) plus a small buffer
+  (function step(now) {
+    positionNavPill();
+    if (now - start < duration) {
+      _navPillAnimId = requestAnimationFrame(step);
+    } else {
+      _navPillAnimId = null;
+    }
+  })(start);
+}
+window.addEventListener('resize', positionNavPill);
+window.addEventListener('load', positionNavPill);
+
 // ════════════════════════════════════════════════
 // MODALS
 // ════════════════════════════════════════════════
 function openModal(id) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalToday();
   if (id === 'modal-body-log') {
     const dateEl = document.getElementById('body-date-input');
     if (!dateEl.dataset.originalDate) {
@@ -1753,7 +1934,7 @@ function getMacroEndDate(macro) {
 
 function getNextMacroStart() {
   // Find the latest end date across all macrocycles, return the day after
-  if (!state.macrocycles.length) return new Date().toISOString().split('T')[0];
+  if (!state.macrocycles.length) return getLocalToday();
   let latest = null;
   state.macrocycles.forEach(m => {
     const end = getMacroEndDate(m);
@@ -1761,7 +1942,7 @@ function getNextMacroStart() {
   });
   const next = new Date(latest);
   next.setDate(next.getDate() + 1);
-  return next.toISOString().split('T')[0];
+  return toLocalDateStr(next);
 }
 function getMacroSummaryLabel(macro) {
   const wpm = macro.weeksPerMeso || 1;
@@ -2101,18 +2282,29 @@ function getMacroTotalVolume(macro) {
 // mapped onto a real calendar date via the macro start date), used for the
 // Plan page's "volume over time" area chart. Only includes sessions with
 // logged volume > 0, sorted chronologically.
+//
+// Each mesocycle ("week" w) spans weeksPerMeso real calendar weeks (default
+// 1), so its dayKeys — which may include microcycle suffixes representing
+// different calendar weeks within that mesocycle, not just same-week
+// variants — are spread proportionally across the mesocycle's full real
+// span (weeksPerMeso * 7 days), not a flat 7 days. Without this, a 2-week
+// mesocycle (weeks:1, weeksPerMeso:2) using microcycles to represent its
+// two real weeks would have every session's approximate date collapse into
+// the same single 7-day window.
 function getMacroVolumeSeries(macro) {
   const dayKeys = getMacroSessionDayKeys(macro);
   const startDate = macro.start ? new Date(macro.start + 'T00:00:00') : new Date();
   const sessionsPerWeek = dayKeys.length;
+  const mesoSpanDays = (macro.weeksPerMeso || 1) * 7;
   const points = [];
   for (let w = 1; w <= macro.weeks; w++) {
     dayKeys.forEach((dayKey, di) => {
       const vol = getSessionVolume(macro, w, dayKey);
       if (vol > 0) {
-        // Approximate calendar date: week start + proportional day offset
+        // Approximate calendar date: mesocycle block start + proportional
+        // offset within that block's real span.
         const d = new Date(startDate);
-        d.setDate(d.getDate() + (w - 1) * 7 + Math.round((di / sessionsPerWeek) * 7));
+        d.setDate(d.getDate() + (w - 1) * mesoSpanDays + Math.round((di / sessionsPerWeek) * mesoSpanDays));
         points.push({ date: d, week: w, day: dayKey, vol });
       }
     });
@@ -2175,7 +2367,7 @@ function findPeakWindow(dayMap, goalType) {
         score,
         delta,
         startDate: dates[i],
-        endDate: new Date(endMs).toISOString().split('T')[0],
+        endDate: toLocalDateStr(new Date(endMs)),
         avgSteps:   stepDays.length  ? Math.round(stepDays.reduce((s,d)  => s + dayMap[d].steps,   0) / stepDays.length)  : null,
         avgKcal:    nutrDays.length  ? Math.round(nutrDays.reduce((s,d)  => s + dayMap[d].kcal,    0) / nutrDays.length)  : null,
         avgProtein: nutrDays.length  ? Math.round(nutrDays.reduce((s,d)  => s + dayMap[d].protein, 0) / nutrDays.length)  : null,
@@ -2184,9 +2376,6 @@ function findPeakWindow(dayMap, goalType) {
   }
   return best;
 }
-
-let progressPeriod = 'week'; // 'day' | 'week' | 'biweek'
-function setProgressPeriod(p) { progressPeriod = p; renderProgressCharts(); }
 
 // Which macrocycle the Progress hero is currently showing. Separate from
 // state.currentMacroId (which drives Plan/Train) so browsing history here
@@ -2240,7 +2429,7 @@ function openCycleHistory() {
     const startStr = startDate.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
 
     const bwLogsAll = (state.bodyLogs || []).filter(l => l.weight).sort((a,b) => a.date.localeCompare(b.date));
-    const macroEndStr = endDate.toISOString().split('T')[0];
+    const macroEndStr = toLocalDateStr(endDate);
     const cycleLogs = bwLogsAll.filter(l => macro.start && l.date >= macro.start && l.date <= macroEndStr);
     const startBw = cycleLogs.length ? parseFloat(cycleLogs[0].weight) : null;
     const latestBw = cycleLogs.length ? parseFloat(cycleLogs[cycleLogs.length - 1].weight) : null;
@@ -2263,12 +2452,23 @@ function openCycleHistory() {
         <div><div style="font-size:10px;color:var(--text3);">Weight</div><div style="font-size:13px;font-weight:500;">${cycleDelta !== null ? Math.abs(cycleDelta).toFixed(1) + ' lbs ' + (cycleDelta < 0 ? 'lost' : 'gained') : '—'}</div></div>
         <div><div style="font-size:10px;color:var(--text3);">Volume</div><div style="font-size:13px;font-weight:500;">${Math.round(totalVolume).toLocaleString()} kg</div></div>
         <div><div style="font-size:10px;color:var(--text3);">Avg steps</div><div style="font-size:13px;font-weight:500;">${avgSteps !== null ? avgSteps.toLocaleString() : '—'}</div></div>
-        <div><div style="font-size:10px;color:var(--text3);">Avg kcal</div><div style="font-size:13px;font-weight:500;">${avgKcal !== null ? avgKcal : '—'}</div></div>
+        <div><div style="font-size:10px;color:var(--text3);">Avg kcal</div><div style="font-size:13px;font-weight:500;">${avgKcal !== null ? avgKcal.toLocaleString() : '—'}</div></div>
         <div><div style="font-size:10px;color:var(--text3);">Avg protein</div><div style="font-size:13px;font-weight:500;">${avgProtein !== null ? avgProtein+'g' : '—'}</div></div>
       </div>
     </div>`;
   }).join('');
   openModal('modal-cycle-history');
+}
+
+// Resolves which macrocycle the Progress page is currently showing —
+// shared by renderHome() and renderProgressHero() so the swipe deck and
+// the rest of the page (body weight, weekly table, nutrition) always
+// agree on the same cycle without needing to be rendered together.
+function resolveProgressMacro() {
+  if (!progressViewMacroId || !state.macrocycles.find(m => m.id === progressViewMacroId)) {
+    progressViewMacroId = state.currentMacroId;
+  }
+  return state.macrocycles.find(m => m.id === progressViewMacroId) || state.macrocycles.find(m => m.id === state.currentMacroId);
 }
 
 function cycleProgressMacro(dir) {
@@ -2281,121 +2481,504 @@ function cycleProgressMacro(dir) {
   renderHome();
 }
 
-function renderHome() {
-  const todayStr = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' });
-  const todayStrShort = new Date().toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
-  document.getElementById('home-date').textContent = todayStr;
-
-  // ── Active cycle hero ─────────────────────────
-  const cycleEl = document.getElementById('home-cycle');
-  if (!progressViewMacroId || !state.macrocycles.find(m => m.id === progressViewMacroId)) {
-    progressViewMacroId = state.currentMacroId;
-  }
-  const macro = state.macrocycles.find(m => m.id === progressViewMacroId) || state.macrocycles.find(m => m.id === state.currentMacroId);
-  const macroList = state.macrocycles.slice().sort((a,b) => (a.start||'').localeCompare(b.start||''));
-  const canCycle = macroList.length > 1;
-
+// Slide 0 of the progress hero swipe deck — the original "Active Cycle"
+// gradient hero card, unchanged in content/behaviour. Extracted into its
+// own function purely so renderProgressHero() can swap it in/out alongside
+// the chart slides.
+function buildActiveCycleHeroSlideHtml(macro, canCycle, todayStrShort) {
   if (!macro) {
-    cycleEl.innerHTML = `<div class="card" style="cursor:pointer;" onclick="showScreen('plan')">
+    return `<div class="card" style="cursor:pointer;" onclick="showScreen('plan')">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <span style="font-size:13px;color:var(--text3);">No active cycle — tap to create one</span>
         <span style="color:var(--text3);font-size:18px;">→</span>
       </div></div>`;
-  } else {
-    const startDate = macro.start ? new Date(macro.start + 'T00:00:00') : new Date();
-    const totalCalWks = getMacroDurationWeeks(macro);
-    const endDate = getMacroEndDate(macro);
-    const today = new Date(); today.setHours(0,0,0,0); startDate.setHours(0,0,0,0);
-    const totalDays = totalCalWks * 7;
-    const elapsedDays = Math.max(0, Math.min(today - startDate, endDate - startDate)) / (1000*60*60*24);
-    const cyclePct = Math.min(100, Math.round((elapsedDays / totalDays) * 100));
-    const currentMeso = today < startDate ? 0 : Math.min(macro.weeks, Math.floor(elapsedDays / ((macro.weeksPerMeso || 1) * 7)) + 1);
-    const weekLabel = today < startDate ? 'Not started' : `MC ${currentMeso} of ${macro.weeks}`;
-    const endStr = endDate.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
-    const splitBadge = macro.splitType === 'fullbody' ? 'Full Body' : macro.splitType === 'custom' ? 'Custom' : 'PPL';
-    const isPast = today > endDate;
-    const isFuture = today < startDate;
-
-    // ── Body weight progress within this cycle ──
-    const bwLogsAll = (state.bodyLogs || []).filter(l => l.weight).sort((a,b) => a.date.localeCompare(b.date));
-    const cycleStartLogs = bwLogsAll.filter(l => macro.start && l.date >= macro.start && (!isPast || l.date <= endDate.toISOString().split('T')[0]));
-    const startBw = cycleStartLogs.length ? parseFloat(cycleStartLogs[0].weight) : null;
-    const latestBw = cycleStartLogs.length ? parseFloat(cycleStartLogs[cycleStartLogs.length - 1].weight) : null;
-    const cycleDelta = (startBw !== null && latestBw !== null) ? latestBw - startBw : null;
-
-    let bwLine = '';
-    if (macro.targetBw && latestBw !== null) {
-      const diff = latestBw - macro.targetBw;
-      const diffStr = Math.abs(diff) <= 0.1 ? 'On target ✓' : diff > 0 ? diff.toFixed(1) + ' lbs left to go' : Math.abs(diff).toFixed(1) + ' lbs below target';
-      const cycleTotalStr = cycleDelta !== null && Math.abs(cycleDelta) >= 0.1 ? `${Math.abs(cycleDelta).toFixed(1)} lbs ${cycleDelta < 0 ? 'lost' : 'gained'} so far · ` : '';
-      bwLine = `${cycleTotalStr}${diffStr}`;
-    } else if (macro.targetBw) {
-      bwLine = `Target ${macro.targetBw} lbs — no weigh-ins yet`;
-    }
-
-    // ── On-track / behind / ahead schedule comparison ──
-    // Compares % through the cycle's timeline vs % progress toward the bodyweight goal.
-    let statusHtml = '';
-    if (macro.targetBw && startBw !== null && latestBw !== null && !isFuture) {
-      const totalBwChangeNeeded = macro.targetBw - startBw;
-      let bwPct = 0;
-      if (Math.abs(totalBwChangeNeeded) >= 0.1) {
-        bwPct = Math.max(0, Math.min(150, ((latestBw - startBw) / totalBwChangeNeeded) * 100));
-      } else {
-        bwPct = 100; // already at goal at cycle start
-      }
-      const gap = bwPct - cyclePct;
-      let statusLabel, statusColor;
-      if (gap >= 8) { statusLabel = '↗ Ahead of schedule'; statusColor = 'rgba(170,255,150,0.95)'; }
-      else if (gap <= -8) { statusLabel = '↘ Falling behind'; statusColor = 'rgba(255,200,150,0.95)'; }
-      else { statusLabel = '● On track'; statusColor = 'rgba(255,255,255,0.95)'; }
-      statusHtml = `<div class="hero-status" style="color:${statusColor};">${statusLabel} — ${Math.round(bwPct)}% of goal vs ${cyclePct}% of cycle</div>`;
-    }
-
-    // ── New callouts: cycle totals, averages, volume ──
-    const dayMapForMacro = buildDayMap();
-    const macroEndStr = endDate.toISOString().split('T')[0];
-    const avgSteps   = avgDayMapField(dayMapForMacro, 'steps',   macro.start || '0000-00-00', macroEndStr);
-    const avgKcal    = avgDayMapField(dayMapForMacro, 'kcal',    macro.start || '0000-00-00', macroEndStr);
-    const avgProtein = avgDayMapField(dayMapForMacro, 'protein', macro.start || '0000-00-00', macroEndStr);
-    const totalVolume = getMacroTotalVolume(macro);
-
-    const weightChangeCallout = cycleDelta !== null
-      ? `<div class="hero-callout"><div class="hero-callout-lbl">Weight ${cycleDelta < 0 ? 'lost' : cycleDelta > 0 ? 'gained' : 'change'}</div><div class="hero-callout-val">${Math.abs(cycleDelta).toFixed(1)} lbs</div></div>`
-      : `<div class="hero-callout"><div class="hero-callout-lbl">Weight change</div><div class="hero-callout-val">—</div></div>`;
-
-    const navArrowButtons = canCycle ? `<div style="display:flex;gap:6px;">
-        <button onclick="cycleProgressMacro(-1)" aria-label="Previous cycle"><svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
-        <button onclick="cycleProgressMacro(1)" aria-label="Next cycle"><svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
-      </div>` : '';
-
-    cycleEl.innerHTML = `<div class="hero-card" data-page="home">
-      <div class="hero-nav-arrows" style="top:18px;right:18px;flex-direction:column;align-items:flex-end;gap:4px;" onclick="event.stopPropagation();">
-        <span style="font-size:10px;color:rgba(255,255,255,0.55);letter-spacing:0.04em;white-space:nowrap;">v5.01</span>
-        ${navArrowButtons}
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-        <div class="hero-tappable" style="flex:1;min-width:0;" onclick="openCycleHistory()">
-          <div class="hero-label">${isPast ? 'Past cycle' : isFuture ? 'Upcoming cycle' : 'Active cycle'} · ${todayStrShort}</div>
-          <div class="hero-value" style="font-size:24px;">${macro.name}</div>
-        </div>
-      </div>
-      <div class="hero-sub hero-tappable" onclick="openCycleHistory()">${macro.goal || ''}${macro.goal ? ' · ' : ''}${splitBadge} · ${totalCalWks}wk · Ends ${endStr}</div>
-      <div class="hero-callouts">
-        ${weightChangeCallout}
-        <div class="hero-callout"><div class="hero-callout-lbl">Volume</div><div class="hero-callout-val">${Math.round(totalVolume).toLocaleString()} kg</div></div>
-        <div class="hero-callout"><div class="hero-callout-lbl">Avg steps</div><div class="hero-callout-val">${avgSteps !== null ? avgSteps.toLocaleString() : '—'}</div></div>
-      </div>
-      <div class="hero-callouts">
-        <div class="hero-callout"><div class="hero-callout-lbl">Avg kcal</div><div class="hero-callout-val">${avgKcal !== null ? avgKcal.toLocaleString() : '—'}</div></div>
-        <div class="hero-callout"><div class="hero-callout-lbl">Avg protein</div><div class="hero-callout-val">${avgProtein !== null ? avgProtein+'g' : '—'}</div></div>
-      </div>
-      <div class="hero-progress-row"><span>${weekLabel}</span><span>${cyclePct}%</span></div>
-      <div class="hero-progress-track"><div class="hero-progress-fill" style="width:${cyclePct}%"></div></div>
-      ${bwLine ? `<div class="hero-sub" style="margin-top:10px;">${bwLine}</div>` : ''}
-      ${statusHtml}
-    </div>`;
   }
+
+  const startDate = macro.start ? new Date(macro.start + 'T00:00:00') : new Date();
+  const totalCalWks = getMacroDurationWeeks(macro);
+  const endDate = getMacroEndDate(macro);
+  const today = new Date(); today.setHours(0,0,0,0); startDate.setHours(0,0,0,0);
+  const totalDays = totalCalWks * 7;
+  const elapsedDays = Math.max(0, Math.min(today - startDate, endDate - startDate)) / (1000*60*60*24);
+  const cyclePct = Math.min(100, Math.round((elapsedDays / totalDays) * 100));
+  const currentMeso = today < startDate ? 0 : Math.min(macro.weeks, Math.floor(elapsedDays / ((macro.weeksPerMeso || 1) * 7)) + 1);
+  const weekLabel = today < startDate ? 'Not started' : `MC ${currentMeso} of ${macro.weeks}`;
+  const endStr = endDate.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+  const splitBadge = macro.splitType === 'fullbody' ? 'Full Body' : macro.splitType === 'custom' ? 'Custom' : 'PPL';
+  const isPast = today > endDate;
+  const isFuture = today < startDate;
+
+  // ── Body weight progress within this cycle ──
+  const bwLogsAll = (state.bodyLogs || []).filter(l => l.weight).sort((a,b) => a.date.localeCompare(b.date));
+  const cycleStartLogs = bwLogsAll.filter(l => macro.start && l.date >= macro.start && (!isPast || l.date <= toLocalDateStr(endDate)));
+  const startBw = cycleStartLogs.length ? parseFloat(cycleStartLogs[0].weight) : null;
+  const latestBw = cycleStartLogs.length ? parseFloat(cycleStartLogs[cycleStartLogs.length - 1].weight) : null;
+  const cycleDelta = (startBw !== null && latestBw !== null) ? latestBw - startBw : null;
+
+  let bwLine = '';
+  if (macro.targetBw && latestBw !== null) {
+    const diff = latestBw - macro.targetBw;
+    const diffStr = Math.abs(diff) <= 0.1 ? 'On target ✓' : diff > 0 ? diff.toFixed(1) + ' lbs left to go' : Math.abs(diff).toFixed(1) + ' lbs below target';
+    const cycleTotalStr = cycleDelta !== null && Math.abs(cycleDelta) >= 0.1 ? `${Math.abs(cycleDelta).toFixed(1)} lbs ${cycleDelta < 0 ? 'lost' : 'gained'} so far · ` : '';
+    bwLine = `${cycleTotalStr}${diffStr}`;
+  } else if (macro.targetBw) {
+    bwLine = `Target ${macro.targetBw} lbs — no weigh-ins yet`;
+  }
+
+  // ── On-track / behind / ahead schedule comparison ──
+  // Compares % through the cycle's timeline vs % progress toward the bodyweight goal.
+  let statusHtml = '';
+  if (macro.targetBw && startBw !== null && latestBw !== null && !isFuture) {
+    const totalBwChangeNeeded = macro.targetBw - startBw;
+    let bwPct = 0;
+    if (Math.abs(totalBwChangeNeeded) >= 0.1) {
+      bwPct = Math.max(0, Math.min(150, ((latestBw - startBw) / totalBwChangeNeeded) * 100));
+    } else {
+      bwPct = 100; // already at goal at cycle start
+    }
+    const gap = bwPct - cyclePct;
+    let statusLabel, statusBg;
+    if (gap >= 8) { statusLabel = '↗ Ahead of schedule'; statusBg = 'var(--accent)'; }
+    else if (gap <= -8) { statusLabel = '↘ Falling behind'; statusBg = 'var(--red)'; }
+    else { statusLabel = '● On track'; statusBg = 'var(--amber)'; }
+    statusHtml = `<div class="hero-status" style="background:${statusBg};color:#eef3f8;">${statusLabel} — ${Math.round(bwPct)}% of goal vs ${cyclePct}% of cycle</div>`;
+  }
+
+  // ── New callouts: cycle totals, averages, volume ──
+  const dayMapForMacro = buildDayMap();
+  const macroEndStr = toLocalDateStr(endDate);
+  const avgSteps   = avgDayMapField(dayMapForMacro, 'steps',   macro.start || '0000-00-00', macroEndStr);
+  const avgKcal    = avgDayMapField(dayMapForMacro, 'kcal',    macro.start || '0000-00-00', macroEndStr);
+  const avgProtein = avgDayMapField(dayMapForMacro, 'protein', macro.start || '0000-00-00', macroEndStr);
+  const totalVolume = getMacroTotalVolume(macro);
+
+  const weightChangeCallout = cycleDelta !== null
+    ? `<div class="hero-callout"><div class="hero-callout-lbl">Weight ${cycleDelta < 0 ? 'lost' : cycleDelta > 0 ? 'gained' : 'change'}</div><div class="hero-callout-val">${Math.abs(cycleDelta).toFixed(1)} lbs</div></div>`
+    : `<div class="hero-callout"><div class="hero-callout-lbl">Weight change</div><div class="hero-callout-val">—</div></div>`;
+
+  const navArrowButtons = canCycle ? `<div style="display:flex;gap:6px;">
+      <button onclick="cycleProgressMacro(-1)" aria-label="Previous cycle"><svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <button onclick="cycleProgressMacro(1)" aria-label="Next cycle"><svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    </div>` : '';
+
+  const isActiveCycle = macro.id === state.currentMacroId;
+  const cycleStatusLabel = isActiveCycle ? 'Active' : isFuture ? 'Upcoming' : 'Past';
+  const cycleStatusPill = `<span style="display:inline-block;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:0.04em;white-space:nowrap;background:${isActiveCycle ? 'rgba(170,255,150,0.22)' : 'rgba(255,255,255,0.18)'};color:${isActiveCycle ? 'rgba(170,255,150,0.95)' : 'rgba(255,255,255,0.85)'};">${cycleStatusLabel.toUpperCase()}</span>`;
+
+  return `<div class="hero-card" data-page="home">
+    <div class="hero-nav-arrows" style="top:18px;right:18px;flex-direction:column;align-items:flex-end;gap:6px;" onclick="event.stopPropagation();">
+      ${cycleStatusPill}
+      ${navArrowButtons}
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+      <div class="hero-tappable" style="flex:1;min-width:0;" onclick="openCycleHistory()">
+        <div class="hero-label">${todayStrShort}</div>
+        <div class="hero-value" style="font-size:24px;">${macro.name}</div>
+      </div>
+    </div>
+    <div class="hero-sub hero-tappable" onclick="openCycleHistory()">${macro.goal || ''}${macro.goal ? ' · ' : ''}${splitBadge} · ${totalCalWks}wk · Ends ${endStr}</div>
+    <div class="hero-callouts">
+      ${weightChangeCallout}
+      <div class="hero-callout"><div class="hero-callout-lbl">Volume</div><div class="hero-callout-val">${Math.round(totalVolume).toLocaleString()} kg</div></div>
+      <div class="hero-callout"><div class="hero-callout-lbl">Avg steps</div><div class="hero-callout-val">${avgSteps !== null ? avgSteps.toLocaleString() : '—'}</div></div>
+    </div>
+    <div class="hero-callouts">
+      <div class="hero-callout"><div class="hero-callout-lbl">Avg kcal</div><div class="hero-callout-val">${avgKcal !== null ? avgKcal.toLocaleString() : '—'}</div></div>
+      <div class="hero-callout"><div class="hero-callout-lbl">Avg protein</div><div class="hero-callout-val">${avgProtein !== null ? avgProtein+'g' : '—'}</div></div>
+    </div>
+    <div class="hero-progress-row"><span>${weekLabel}</span><span>${cyclePct}%</span></div>
+    <div class="hero-progress-track"><div class="hero-progress-fill" style="width:${cyclePct}%"></div></div>
+    ${bwLine ? `<div class="hero-sub" style="margin-top:10px;">${bwLine}</div>` : ''}
+    ${statusHtml}
+  </div>`;
+}
+
+// Slide 1 — body weight over time, as a white area line chart on the
+// gradient hero shell. Scoped to the active macrocycle's date range, same
+// as the rest of the Active Cycle stats.
+function buildWeightHeroChart(macro) {
+  const emptyShell = msg => `<div class="hero-card" data-page="home">
+    <div class="hero-label">Weight over time</div>
+    <div class="hero-chart-fill" style="font-size:13px;color:rgba(255,255,255,0.6);text-align:center;">${msg}</div>
+  </div>`;
+  if (!macro || !macro.start) return emptyShell('No active cycle yet');
+
+  const endDate = getMacroEndDate(macro);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const isPast = today > endDate;
+  const macroEndStr = toLocalDateStr(endDate);
+  const bwLogsAll = (state.bodyLogs||[]).filter(l => l.weight).sort((a,b) => a.date.localeCompare(b.date));
+  const cycleLogs = bwLogsAll.filter(l => l.date >= macro.start && (!isPast || l.date <= macroEndStr));
+  if (cycleLogs.length < 2) return emptyShell('Log a few weigh-ins to see your trend');
+
+  const points = cycleLogs.map(l => {
+    const d = new Date(l.date + 'T00:00:00');
+    return { label: `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}`, y: parseFloat(l.weight) };
+  });
+  const delta = points[points.length-1].y - points[0].y;
+  const deltaStr = (Math.abs(delta) < 0.05) ? 'No change' : `${delta > 0 ? '+' : ''}${delta.toFixed(1)} lbs`;
+
+  return `<div class="hero-card" data-page="home">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+      <div class="hero-label" style="margin-bottom:0;">Weight over time</div>
+      <span style="font-size:11px;color:rgba(255,255,255,0.65);">${deltaStr}</span>
+    </div>
+    <div class="hero-chart-fill" style="margin-top:10px;">${buildAreaLineChart(points, 'rgba(255,255,255,0.85)')}</div>
+  </div>`;
+}
+
+// Slide 2 — training volume over time (moved here from its old standalone
+// spot below the hero). Same data source as before (getMacroVolumeSeries),
+// grouped into one point per CALENDAR week (summed) rather than one per
+// session, so the trend reads at a glance over a full cycle instead of as a
+// noisy session-by-session zigzag.
+//
+// Grouped by real elapsed calendar time since macro.start — NOT by the
+// session's internal mesocycle index (p.week) — because a single mesocycle
+// can span multiple real weeks (weeksPerMeso > 1) with microcycles
+// representing each of those real weeks; grouping by mesocycle index alone
+// would collapse all of them into one bucket.
+function buildVolumeHeroChart(macro) {
+  const emptyShell = msg => `<div class="hero-card" data-page="home">
+    <div class="hero-label">Volume over time</div>
+    <div class="hero-chart-fill" style="font-size:13px;color:rgba(255,255,255,0.6);text-align:center;">${msg}</div>
+  </div>`;
+  if (!macro) return emptyShell('No active cycle yet');
+  const series = getMacroVolumeSeries(macro);
+  if (series.length < 2) return emptyShell('Log a few sessions to see your volume trend');
+
+  const startDate = macro.start ? new Date(macro.start + 'T00:00:00') : null;
+  const weekTotals = new Map();
+  series.forEach(p => {
+    const calWeek = startDate
+      ? Math.floor(Math.round((p.date - startDate) / 86400000) / 7) + 1
+      : p.week;
+    weekTotals.set(calWeek, (weekTotals.get(calWeek) || 0) + p.vol);
+  });
+  const points = [...weekTotals.entries()]
+    .sort((a,b) => a[0] - b[0])
+    .map(([week, vol]) => ({ label: 'W' + week, y: vol }));
+  if (points.length < 2) return emptyShell('Log a few more weeks to see your volume trend');
+
+  const totalVol = series.reduce((s,p) => s + p.vol, 0);
+
+  return `<div class="hero-card" data-page="home">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+      <div class="hero-label" style="margin-bottom:0;">Volume over time</div>
+      <span style="font-size:11px;color:rgba(255,255,255,0.65);">${Math.round(totalVol).toLocaleString()} kg total</span>
+    </div>
+    <div class="hero-chart-fill" style="margin-top:10px;">${buildAreaLineChart(points, 'rgba(255,255,255,0.85)')}</div>
+  </div>`;
+}
+
+// The goal covering a specific date for a specific macrocycle. Goals have
+// their own start/end dates independent of the macrocycle's, so this is a
+// per-day lookup rather than a single "current goal" — that's what lets the
+// steps/kcal charts reflect a goal that changed partway through a cycle.
+function getGoalForDate(dateStr, macroId) {
+  if (!state.goals) return null;
+  return state.goals.find(g => g.macroId === macroId && g.startDate <= dateStr && g.endDate >= dateStr) || null;
+}
+
+// Slides 3/4 — steps or kcal vs goal, one column per day, from the cycle's
+// start through today (or cycle end, if it's in the past). Each column has
+// a recessed "target" pill sized to that day's goal, with the actual logged
+// value filled in on top. The y-axis is scaled to the tallest goal/value in
+// the whole range, so a goal change partway through visibly shows up as the
+// older weeks' target pills falling short of the new ceiling. Horizontally
+// scrollable, defaulting to fully scrolled right (most recent days).
+function buildGoalColumnHeroChart(macro, metric) {
+  const label = metric === 'steps' ? 'Steps vs goal' : 'Kcal vs goal';
+  const emptyShell = msg => `<div class="hero-card" data-page="home">
+    <div class="hero-label">${label}</div>
+    <div class="hero-chart-fill" style="font-size:13px;color:rgba(255,255,255,0.6);text-align:center;">${msg}</div>
+  </div>`;
+  if (!macro || !macro.start) return emptyShell('No active cycle yet');
+
+  const dayMap = buildDayMap();
+  const startDate = new Date(macro.start + 'T00:00:00');
+  const endDateObj = getMacroEndDate(macro);
+  const todayObj = new Date(getLocalToday() + 'T00:00:00');
+  const lastDate = todayObj < endDateObj ? todayObj : endDateObj;
+  if (lastDate < startDate) return emptyShell("Cycle hasn't started yet");
+
+  const dowLetters = ['S','M','T','W','T','F','S'];
+  const days = [];
+  let cur = new Date(startDate);
+  while (cur.getTime() <= lastDate.getTime()) {
+    const ds = toLocalDateStr(cur);
+    const goal = getGoalForDate(ds, macro.id);
+    const target = goal ? (parseInt(metric === 'steps' ? goal.steps : goal.kcal) || 0) : 0;
+    const dm = dayMap[ds];
+    const actual = metric === 'steps'
+      ? (dm && dm.steps !== null ? dm.steps : null)
+      : (dm && dm.hasNutr ? dm.kcal : null);
+    const week = Math.floor((cur.getTime() - startDate.getTime()) / (7*86400000)) + 1;
+    days.push({ target: target || null, actual, week, dowLabel: dowLetters[cur.getDay()] });
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  const allTargets = days.map(d=>d.target).filter(v=>v!==null && v>0);
+  const allActuals = days.map(d=>d.actual).filter(v=>v!==null);
+  if (!allTargets.length && !allActuals.length) return emptyShell('No goals or logs yet for this cycle');
+
+  // Headroom: the tallest bar (target or actual) should reach ~85% of the
+  // real available card space, leaving ~15% air above it. The actual pixel
+  // value behind --goal-chart-h is measured and set after render (see the
+  // progressHeroIndex===3/4 branch in renderProgressHero) since it depends
+  // on the card's real locked height, which varies cycle to cycle. Each
+  // bar's height is calc(var(--goal-chart-h) * fraction) so a goal change
+  // mid-cycle (e.g. 8000 → 10000) still rescales every bar against the
+  // single tallest value while each target pill stays true to its own
+  // day's goal — same ratio math as before, just against a dynamic base
+  // instead of a fixed 86px one.
+  const yMax = Math.max(...allTargets, ...allActuals, 1) / 0.85;
+  const defaultColor = metric === 'steps' ? 'var(--ice-blue)' : 'var(--purple)';
+  const overColor    = metric === 'steps' ? 'var(--accent)'   : 'var(--red)';
+
+  // Up to 21 bars (3 weeks) stretch to fill the full card width; beyond
+  // that, bars hold a fixed width and the row scrolls horizontally.
+  const fillMode = days.length <= 21;
+
+  let prevWeek = null;
+  const cols = days.map(d => {
+    const targetFrac = d.target ? d.target/yMax : 0;
+    const hasActual = d.actual !== null;
+    const actualFrac = hasActual ? d.actual/yMax : 0;
+    const actualMinH = (hasActual && d.actual > 0) ? '3px' : '0px';
+    const exceeded = d.target && hasActual && d.actual > d.target;
+    const barColor = exceeded ? overColor : defaultColor;
+    const isNewWeek = prevWeek !== null && d.week !== prevWeek;
+    prevWeek = d.week;
+    const colFlex = fillMode ? 'flex:1 1 0;min-width:0;' : 'flex:0 0 auto;';
+    const barWidth = fillMode ? '100%' : '11px';
+    return `<div style="${colFlex}${isNewWeek ? 'margin-left:7px;padding-left:7px;border-left:1px dashed rgba(255,255,255,0.18);' : ''}">
+      <div style="position:relative;height:var(--goal-chart-h, 86px);width:${barWidth};">
+        ${d.target ? `<div style="position:absolute;bottom:0;left:0;right:0;height:calc(var(--goal-chart-h, 86px) * ${targetFrac});min-height:3px;border-radius:4px;background:rgba(0,0,0,0.3);box-shadow:inset 0 2px 3px rgba(0,0,0,0.55), inset 0 -1px 0 rgba(255,255,255,0.06);"></div>` : ''}
+        ${hasActual ? `<div style="position:absolute;bottom:0;left:0;right:0;height:calc(var(--goal-chart-h, 86px) * ${actualFrac});min-height:${actualMinH};border-radius:4px;background:${barColor};box-shadow:0 1px 2px rgba(0,0,0,0.3);"></div>` : ''}
+      </div>
+      <div style="margin-top:4px;text-align:center;font-size:8px;font-weight:600;color:rgba(255,255,255,0.45);">${d.dowLabel}</div>
+    </div>`;
+  }).join('');
+
+  const weeksShown = Math.ceil(days.length / 7);
+
+  return `<div class="hero-card" data-page="home">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+      <div class="hero-label" style="margin-bottom:0;">${label}</div>
+      <span style="font-size:10px;color:rgba(255,255,255,0.5);">${weeksShown} wk${weeksShown!==1?'s':''}${fillMode ? '' : ' · scroll for more'}</span>
+    </div>
+    <div class="hero-chart-fill" style="justify-content:flex-end;">
+      <div class="goal-chart-scroll" style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;padding:0 4px 4px;">
+        <div style="display:flex;align-items:flex-end;gap:3px;${fillMode ? 'width:100%;' : 'width:max-content;'}">${cols}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Progress hero swipe deck ────────────────────────────────────────────
+// 5 slides: 0=Active Cycle, 1=Weight over time, 2=Volume over time,
+// 3=Steps vs goal, 4=Kcal vs goal. Mirrors the nutrition hero's swipe
+// animation (commit/snap-back, gesture token, click suppression) but pages
+// through a fixed deck of views by index instead of cycling dates, and is
+// clamped at both ends rather than wrapping.
+let progressHeroIndex = 0;
+
+function renderProgressHero() {
+  const el = document.getElementById('progress-hero-card');
+  if (!el) return;
+  const todayStrShort = new Date().toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
+  const macro = resolveProgressMacro();
+  const macroList = state.macrocycles.slice().sort((a,b) => (a.start||'').localeCompare(b.start||''));
+  const canCycle = macroList.length > 1;
+
+  let html;
+  switch (progressHeroIndex) {
+    case 1: html = buildWeightHeroChart(macro); break;
+    case 2: html = buildVolumeHeroChart(macro); break;
+    case 3: html = buildGoalColumnHeroChart(macro, 'steps'); break;
+    case 4: html = buildGoalColumnHeroChart(macro, 'kcal'); break;
+    default: html = buildActiveCycleHeroSlideHtml(macro, canCycle, todayStrShort); break;
+  }
+  el.innerHTML = html;
+  renderProgressHeroDots();
+
+  requestAnimationFrame(() => {
+    initProgressHeroSwipe();
+    const scroller = el.querySelector('.goal-chart-scroll');
+    if (scroller) scroller.scrollLeft = scroller.scrollWidth;
+
+    // Lock every slide in the deck to slide 1's natural height so the
+    // card doesn't grow for line charts or shrink for bar charts.
+    if (progressHeroIndex === 0) {
+      const wrap = document.getElementById('progress-hero-wrap');
+      const card = el.querySelector('.hero-card');
+      if (wrap && card) {
+        wrap.style.removeProperty('--hero-fixed-h');
+        const h = card.getBoundingClientRect().height;
+        wrap.style.setProperty('--hero-fixed-h', h + 'px');
+      }
+    }
+
+    // Steps/kcal goal-column bars: size --goal-chart-h to ~85% of the real
+    // available space in the (already height-locked) card, measured live
+    // rather than guessed, so bars genuinely fill the card instead of
+    // sitting in a small fixed box. Runs before paint, so there's no flash.
+    if (progressHeroIndex === 3 || progressHeroIndex === 4) {
+      const fill = el.querySelector('.hero-chart-fill');
+      if (fill) {
+        const h = fill.getBoundingClientRect().height;
+        fill.style.setProperty('--goal-chart-h', Math.max(40, Math.round(h * 0.85)) + 'px');
+      }
+    }
+  });
+}
+
+function renderProgressHeroDots() {
+  const el = document.getElementById('progress-hero-dots');
+  if (!el) return;
+  el.innerHTML = [0,1,2,3,4].map(i =>
+    `<span class="hero-dot${i===progressHeroIndex?' active':''}" onclick="progressHeroAnimateTo(${i})"></span>`
+  ).join('');
+}
+
+function getProgressHeroCard() {
+  const wrap = document.getElementById('progress-hero-wrap');
+  return wrap ? wrap.querySelector('.hero-card') : null;
+}
+
+let _progressHeroBusy = false;
+let _progressHeroGestureId = 0;
+
+function progressHeroSnapBack() {
+  const card = getProgressHeroCard();
+  if (card) {
+    card.style.transition = 'transform 0.18s ease-out, opacity 0.18s ease-out';
+    card.style.transform = 'translateX(0)';
+    card.style.opacity = '1';
+  }
+}
+
+// Animates the current slide out, switches progressHeroIndex exactly once,
+// then animates the new slide in. Wraps around at either end of the deck
+// (index 4 → 0 going forward, index 0 → 4 going backward) instead of
+// stopping — direction is computed from the raw, pre-wrap target so the
+// animation still plays in the swiped direction rather than reversing.
+function progressHeroAnimateTo(rawIndex) {
+  const dir = rawIndex > progressHeroIndex ? 1 : (rawIndex < progressHeroIndex ? -1 : 0);
+  let newIndex = rawIndex;
+  if (newIndex < 0) newIndex = 4;
+  else if (newIndex > 4) newIndex = 0;
+  if (newIndex === progressHeroIndex) {
+    progressHeroSnapBack();
+    return;
+  }
+  if (_progressHeroBusy) return;
+  _progressHeroBusy = true;
+  const myGesture = ++_progressHeroGestureId;
+
+  const outX = dir > 0 ? -260 : 260;
+  const card = getProgressHeroCard();
+  if (card) {
+    card.style.transition = 'transform 0.16s ease-in, opacity 0.16s ease-in';
+    card.style.transform = `translateX(${outX}px)`;
+    card.style.opacity = '0';
+  }
+
+  setTimeout(() => {
+    if (myGesture !== _progressHeroGestureId) return;
+    progressHeroIndex = newIndex;
+    renderProgressHero();
+    requestAnimationFrame(() => {
+      if (myGesture !== _progressHeroGestureId) return;
+      const newCard = getProgressHeroCard();
+      if (newCard) {
+        newCard.style.transition = 'none';
+        newCard.style.transform = `translateX(${-outX}px)`;
+        newCard.style.opacity = '0';
+        void newCard.offsetWidth;
+        requestAnimationFrame(() => {
+          if (myGesture !== _progressHeroGestureId) return;
+          newCard.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+          newCard.style.transform = 'translateX(0)';
+          newCard.style.opacity = '1';
+        });
+      }
+      setTimeout(() => { if (myGesture === _progressHeroGestureId) _progressHeroBusy = false; }, 210);
+    });
+  }, 160);
+}
+
+let _progressHeroSwipeInited = false;
+function initProgressHeroSwipe() {
+  if (_progressHeroSwipeInited) return;
+  _progressHeroSwipeInited = true;
+  const wrap = document.getElementById('progress-hero-wrap');
+  if (!wrap) return;
+  wrap.style.touchAction = 'pan-y';
+
+  let startX = 0, startY = 0;
+  let tracking = false;
+  let moved = false;
+  let suppressClick = false;
+
+  function resetGesture() { tracking = false; moved = false; }
+
+  wrap.addEventListener('touchstart', e => {
+    if (_progressHeroBusy) { resetGesture(); return; }
+    if (e.target.closest('.hero-nav-arrows')) { resetGesture(); return; }
+    if (e.touches.length !== 1) { resetGesture(); return; }
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    tracking = true;
+    moved = false;
+  }, { passive: true });
+
+  wrap.addEventListener('touchmove', e => {
+    if (!tracking || _progressHeroBusy) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+    if (!moved && Math.abs(dy) > Math.abs(dx) + 4) { tracking = false; return; }
+    if (Math.abs(dx) > 8) moved = true;
+  }, { passive: true });
+
+  wrap.addEventListener('touchend', e => {
+    if (_progressHeroBusy) { resetGesture(); return; }
+    if (tracking && moved && e.changedTouches.length === 1) {
+      const dx = e.changedTouches[0].clientX - startX;
+      if (Math.abs(dx) > 40) {
+        suppressClick = true;
+        // Swipe left (negative dx) → next slide. Swipe right → previous slide.
+        progressHeroAnimateTo(progressHeroIndex + (dx < 0 ? 1 : -1));
+      } else {
+        progressHeroSnapBack();
+      }
+    }
+    resetGesture();
+  }, { passive: true });
+
+  wrap.addEventListener('touchcancel', () => {
+    if (!_progressHeroBusy) progressHeroSnapBack();
+    resetGesture();
+  }, { passive: true });
+
+  wrap.addEventListener('click', e => {
+    if (suppressClick) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    suppressClick = false;
+  }, true);
+}
+
+function renderHome() {
+  const todayStr = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' });
+  document.getElementById('home-date').textContent = todayStr;
+
+  const macro = resolveProgressMacro();
+
+  // ── Active cycle hero + swipeable chart deck ──
+  renderProgressHero();
 
   // ── Body weight card ──────────────────────────
   const bodyEl = document.getElementById('home-body');
@@ -2426,11 +3009,11 @@ function renderHome() {
     const endFmt   = new Date(peak.endDate   + 'T00:00:00').toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
     const parts = [];
     if (peak.avgSteps   !== null) parts.push(`${peak.avgSteps.toLocaleString()} avg steps/day`);
-    if (peak.avgKcal    !== null) parts.push(`${peak.avgKcal} avg kcal/day`);
+    if (peak.avgKcal    !== null) parts.push(`${peak.avgKcal.toLocaleString()} avg kcal/day`);
     if (peak.avgProtein !== null) parts.push(`${peak.avgProtein}g avg protein/day`);
     const factorStr = parts.length ? ' During this time: ' + parts.join(', ') + '.' : '';
     peakHtml = `<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border);font-size:12px;color:var(--text2);line-height:1.5;">
-      <span style="color:var(--accent);font-weight:600;">★ Best 7-day window</span> — ${startFmt} to ${endFmt}, <strong>${Math.abs(peak.delta).toFixed(1)} lbs ${verb}</strong>.${factorStr}
+      <span style="color:var(--text);font-weight:600;">★ Best 7-day window</span> — ${startFmt} to ${endFmt}, <strong>${Math.abs(peak.delta).toFixed(1)} lbs ${verb}</strong>.${factorStr}
     </div>`;
 
     // Peak-vs-this-week callout
@@ -2448,7 +3031,7 @@ function renderHome() {
       const completedDates = [];
       for (let i = completedDays; i >= 1; i--) {
         const d = new Date(todayDate); d.setDate(todayDate.getDate() - i);
-        completedDates.push(d.toISOString().split('T')[0]);
+        completedDates.push(toLocalDateStr(d));
       }
       // Days remaining = today + rest of week until Sun
       const daysRemaining = daysLeft + 1; // include today
@@ -2470,7 +3053,7 @@ function renderHome() {
       }
       if (peakKcalTotal !== null && daysRemaining > 0) {
         const needed = Math.round((peakKcalTotal - compKcal) / daysRemaining);
-        if (needed > 0) hints.push(`${needed} kcal/day`);
+        if (needed > 0) hints.push(`${needed.toLocaleString()} kcal/day`);
       }
       if (peakProteinTotal !== null && daysRemaining > 0) {
         const needed = Math.round((peakProteinTotal - compProtein) / daysRemaining);
@@ -2498,16 +3081,14 @@ function renderHome() {
     ${peakHtml}
   </div>`;
 
-  // ── Volume over time (moved here from Plan page) ──
-  const volChartEl = document.getElementById('home-volume-chart');
-  if (volChartEl) volChartEl.innerHTML = macro ? buildPlanVolumeChartCard(macro) : '';
-
-  // ── Progress charts ───────────────────────────
+  // ── Progress charts (weekly summary table) ────
   renderProgressCharts();
 
-  // ── Steps & Nutrition ─────────────────────────
-  renderHomeSteps();
+  // ── Steps & Nutrition (merged into one card) ──
   renderHomeNutr();
+
+  // ── Weekly macro split pies ───────────────────
+  renderHomeNutrPies();
 }
 
 function renderProgressCharts() {
@@ -2524,117 +3105,9 @@ function renderProgressCharts() {
     return;
   }
 
-  // ── Build period buckets ──────────────────────
-  const periodDays = progressPeriod === 'day' ? 1 : progressPeriod === 'week' ? 7 : 14;
   const anchor = (macro && macro.start && macro.start <= allDates[0]) ? macro.start : allDates[0];
   const anchorMs = new Date(anchor + 'T00:00:00').getTime();
   const todayMs  = new Date(getLocalToday() + 'T00:00:00').getTime();
-
-  const buckets = [];
-  let cur = new Date(anchorMs);
-  while (cur.getTime() <= todayMs) {
-    const bStart = cur.toISOString().split('T')[0];
-    const bEnd   = new Date(cur.getTime() + (periodDays - 1) * 86400000).toISOString().split('T')[0];
-    const bDates = allDates.filter(d => d >= bStart && d <= bEnd);
-    if (bDates.length > 0) {
-      const wDates = bDates.filter(d => dayMap[d].weight !== null);
-      const sDates = bDates.filter(d => dayMap[d].steps  !== null);
-      const nDates = bDates.filter(d => dayMap[d].hasNutr);
-      const firstW = wDates.length ? dayMap[wDates[0]].weight : null;
-      const lastW  = wDates.length ? dayMap[wDates[wDates.length-1]].weight : null;
-      // weightDelta filled in post-processing pass for daily; for weekly/biweekly compute inline
-      const weightDelta = periodDays === 1
-        ? null // placeholder — filled below
-        : (firstW !== null && lastW !== null && wDates.length > 1 ? parseFloat((lastW - firstW).toFixed(1)) : null);
-      buckets.push({
-        label:      bStart.slice(5).split('-').reverse().join('-'), // dd-mm
-        start:      bStart,
-        rawWeight:  firstW, // used for daily delta calculation
-        weightDelta,
-        avgSteps:   sDates.length ? Math.round(sDates.reduce((s,d) => s + dayMap[d].steps,   0) / sDates.length) : null,
-        avgKcal:    nDates.length ? Math.round(nDates.reduce((s,d) => s + dayMap[d].kcal,    0) / nDates.length) : null,
-        avgProtein: nDates.length ? Math.round(nDates.reduce((s,d) => s + dayMap[d].protein, 0) / nDates.length) : null,
-        weekNum:    Math.floor((new Date(bStart+'T00:00:00').getTime() - anchorMs) / (7 * 86400000)) + 1,
-      });
-    }
-    cur = new Date(cur.getTime() + periodDays * 86400000);
-  }
-
-  // Post-process: for daily view, set weightDelta = delta vs previous day's weight
-  // First bucket shows starting weight (no previous); subsequent show day-on-day change
-  if (periodDays === 1) {
-    // Find the most recent weight before each bucket to compute delta
-    const weightedBuckets = buckets.filter(b => b.rawWeight !== null);
-    buckets.forEach((b, i) => {
-      if (b.rawWeight === null) { b.weightDelta = null; return; }
-      // Find previous bucket that had a weight
-      let prevW = null;
-      for (let j = i - 1; j >= 0; j--) {
-        if (buckets[j].rawWeight !== null) { prevW = buckets[j].rawWeight; break; }
-      }
-      b.weightDelta = prevW !== null
-        ? parseFloat((b.rawWeight - prevW).toFixed(1))
-        : 0; // first entry: delta of 0 (starting point)
-    });
-  }
-
-  if (buckets.length < 1) { el.innerHTML = ''; return; }
-
-  // ── Build dual-axis SVG line chart ────────────
-  const C = {
-    weight:  'var(--accent)',   // green
-    steps:   'var(--blue)',
-    kcal:    'var(--amber)',
-  };
-
-  function dualLineChart(buckets, rightKey, rightColor, rightLabel) {
-    const wVals = buckets.map(b => b.weightDelta).filter(v => v !== null);
-    const rVals = buckets.map(b => b[rightKey]).filter(v => v !== null);
-    if (!wVals.length || !rVals.length) return '<div style="font-size:11px;color:var(--text3);padding:8px 0;">Not enough data</div>';
-
-    const W = 300, H = 115, padL = 8, padR = 8, padT = 8, padB = 22;
-    const cW = W - padL - padR, cH = H - padT - padB;
-    const n  = buckets.length;
-
-    // Left axis: weight delta
-    const wMin = Math.min(...wVals, 0), wMax = Math.max(...wVals, 0);
-    const wRange = wMax - wMin || 1;
-    const normW = v => v === null ? null : padT + cH - ((v - wMin) / wRange) * cH;
-
-    // Right axis: steps or kcal
-    const rMin = Math.min(...rVals) * 0.9, rMax = Math.max(...rVals) * 1.05;
-    const rRange = rMax - rMin || 1;
-    const normR = v => v === null ? null : padT + cH - ((v - rMin) / rRange) * cH;
-
-    const xPos = i => padL + (i / Math.max(n - 1, 1)) * cW;
-
-    function polyline(pts, color) {
-      const valid = pts.filter(p => p.y !== null);
-      if (valid.length < 2) return '';
-      return `<polyline points="${valid.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
-    }
-
-    const wPts = buckets.map((b, i) => ({ x: xPos(i), y: normW(b.weightDelta) }));
-    const rPts = buckets.map((b, i) => ({ x: xPos(i), y: normR(b[rightKey]) }));
-
-    // Zero line for weight only (no labels)
-    const zeroY = normW(0);
-    const zeroLine = `<line x1="${padL}" y1="${zeroY.toFixed(1)}" x2="${W - padR}" y2="${zeroY.toFixed(1)}" stroke="var(--border2)" stroke-width="0.5" stroke-dasharray="3,2"/>`;
-
-    // X axis date labels only — no numbers
-    const step = Math.max(1, Math.ceil(n / 6));
-    const xLabels = buckets.map((b, i) => i % step === 0
-      ? `<text x="${xPos(i).toFixed(1)}" y="${H - 2}" text-anchor="middle" font-size="7" fill="var(--text3)" font-family="var(--font-mono)">${b.label}</text>`
-      : ''
-    ).join('');
-
-    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block;overflow:visible;">
-      ${zeroLine}
-      ${polyline(wPts, C.weight)}
-      ${polyline(rPts, rightColor)}
-      ${xLabels}
-    </svg>`;
-  }
 
   // ── Weekly summary table ──────────────────────
   // Always use 7-day buckets for the table
@@ -2644,8 +3117,8 @@ function renderProgressCharts() {
     let wn = 1;
     let prevLastWeight = null; // carry last weight from previous week
     while (cur2.getTime() <= todayMs) {
-      const bStart = cur2.toISOString().split('T')[0];
-      const bEnd   = new Date(cur2.getTime() + 6 * 86400000).toISOString().split('T')[0];
+      const bStart = toLocalDateStr(cur2);
+      const bEnd   = toLocalDateStr(new Date(cur2.getTime() + 6 * 86400000));
       const bDates = allDates.filter(d => d >= bStart && d <= bEnd);
       if (bDates.length > 0) {
         const wD = bDates.filter(d => dayMap[d].weight !== null);
@@ -2674,6 +3147,8 @@ function renderProgressCharts() {
     }
     return b;
   })();
+
+  if (!weekBuckets.length) { el.innerHTML = ''; return; }
 
   // Heat-map colour for a column of values
   function heatColour(val, vals, lowGood) {
@@ -2705,48 +3180,22 @@ function renderProgressCharts() {
     return `<tr>
       <td style="font-family:var(--font-mono);font-size:11px;color:var(--text2);padding:5px 4px;border-bottom:0.5px solid var(--border);">${b.label}</td>
       <td style="font-size:11px;color:${deltaCol};padding:5px 4px;border-bottom:0.5px solid var(--border);font-weight:500;">${deltaStr}</td>
-      <td style="font-size:11px;color:var(--text2);padding:5px 4px;border-bottom:0.5px solid var(--border);">${sq(kcalHeat)}${b.kcal ?? '—'}</td>
+      <td style="font-size:11px;color:var(--text2);padding:5px 4px;border-bottom:0.5px solid var(--border);">${sq(kcalHeat)}${b.kcal !== null ? b.kcal.toLocaleString() : '—'}</td>
       <td style="font-size:11px;color:var(--text2);padding:5px 4px;border-bottom:0.5px solid var(--border);">${sq(stepsHeat)}${b.steps !== null ? b.steps.toLocaleString() : '—'}</td>
       <td style="font-size:11px;color:var(--text2);padding:5px 4px;border-bottom:0.5px solid var(--border);">${sq(proteinHeat)}${b.protein !== null ? b.protein + 'g' : '—'}</td>
     </tr>`;
   }).join('');
 
-  // ── Period toggle ─────────────────────────────
-  const togBtn = (p, label) => {
-    const active = progressPeriod === p;
-    return `<button onclick="setProgressPeriod('${p}')" style="padding:3px 8px;border-radius:4px;border:none;font-size:10px;cursor:pointer;background:${active ? 'var(--surface)' : 'transparent'};color:${active ? 'var(--text)' : 'var(--text3)'};font-family:var(--font-mono);">${label}</button>`;
-  };
-
   el.innerHTML = `<div class="card" style="margin-top:8px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <div style="font-size:12px;color:var(--text2);font-weight:500;">Weight Δ vs Steps</div>
-      <div style="display:flex;background:var(--surface2);border-radius:6px;padding:2px;gap:1px;">
-        ${togBtn('day','Daily')}${togBtn('week','Weekly')}${togBtn('biweek','2-wk')}
-      </div>
-    </div>
-    <div style="font-size:10px;color:var(--text3);margin-bottom:6px;">
-      <span style="color:var(--accent);">── weight Δ (lbs, left)</span> &nbsp;
-      <span style="color:var(--blue);">── steps (right)</span>
-    </div>
-    ${dualLineChart(buckets, 'avgSteps', C.steps, 'steps')}
-
-    <div style="font-size:12px;color:var(--text2);font-weight:500;margin-top:16px;margin-bottom:6px;">Weight Δ vs Kcal</div>
-    <div style="font-size:10px;color:var(--text3);margin-bottom:6px;">
-      <span style="color:var(--accent);">── weight Δ (lbs, left)</span> &nbsp;
-      <span style="color:var(--amber);">── kcal (right)</span>
-    </div>
-    ${dualLineChart(buckets, 'avgKcal', C.kcal, 'kcal')}
-
-    <div style="font-size:12px;color:var(--text2);font-weight:500;margin-top:16px;margin-bottom:8px;">Weekly Summary</div>
     <div style="overflow-x:auto;">
       <table style="width:100%;border-collapse:collapse;">
         <thead>
           <tr>
-            <th style="font-size:10px;color:var(--text3);text-align:left;padding:4px 4px;font-weight:500;">Week</th>
-            <th style="font-size:10px;color:var(--text3);text-align:left;padding:4px 4px;font-weight:500;">Δ weight</th>
-            <th style="font-size:10px;color:var(--text3);text-align:left;padding:4px 4px;font-weight:500;">Avg kcal</th>
-            <th style="font-size:10px;color:var(--text3);text-align:left;padding:4px 4px;font-weight:500;">Avg steps</th>
-            <th style="font-size:10px;color:var(--text3);text-align:left;padding:4px 4px;font-weight:500;">Avg prot</th>
+            <th style="font-size:10px;color:var(--text2);text-align:left;padding:4px 4px;font-weight:500;">Week</th>
+            <th style="font-size:10px;color:var(--text2);text-align:left;padding:4px 4px;font-weight:500;">Δ weight</th>
+            <th style="font-size:10px;color:var(--text2);text-align:left;padding:4px 4px;font-weight:500;">Avg kcal</th>
+            <th style="font-size:10px;color:var(--text2);text-align:left;padding:4px 4px;font-weight:500;">Avg steps</th>
+            <th style="font-size:10px;color:var(--text2);text-align:left;padding:4px 4px;font-weight:500;">Avg prot</th>
           </tr>
         </thead>
         <tbody>${tableRows}</tbody>
@@ -2755,13 +3204,11 @@ function renderProgressCharts() {
   </div>`;
 }
 
+const homeToggle = { nutr: 'avg' };
 
-
-const homeToggle = { steps: 'avg', nutr: 'avg' };
-
-function setHomeToggle(section, val) {
-  homeToggle[section] = val;
-  const ids  = section === 'steps' ? ['steps-tog-today','steps-tog-avg'] : ['nutr-tog-today','nutr-tog-avg'];
+function setHomeNutrToggle(val) {
+  homeToggle.nutr = val;
+  const ids  = ['nutr-tog-today','nutr-tog-avg'];
   const vals = ['today', 'avg'];
   ids.forEach((id, i) => {
     const el = document.getElementById(id);
@@ -2769,8 +3216,7 @@ function setHomeToggle(section, val) {
     el.style.background = vals[i] === val ? 'var(--surface)' : 'transparent';
     el.style.color       = vals[i] === val ? 'var(--text)'    : 'var(--text3)';
   });
-  if (section === 'steps') renderHomeSteps();
-  else renderHomeNutr();
+  renderHomeNutr();
 }
 
 function getLocal7Days() {
@@ -2817,52 +3263,9 @@ function buildHomeProgressBar(logged, target, color, overColor) {
     + '</div>';
 }
 
-function renderHomeSteps() {
-  const el = document.getElementById('home-steps');
-  if (!el) return;
-  const today = getLocalToday();
-  const goal = typeof getActiveGoal === 'function' ? getActiveGoal() : null;
-  const stepsGoal = goal ? (goal.steps||0) : 0;
-  const days = getLocal7Days();
-  const values = days.map(d => {
-    const log = (state.bodyLogs||[]).find(l => l.date === d.date);
-    return log && log.steps ? parseInt(log.steps) : null;
-  });
-  const todayVal = values[6];
-  const validVals = values.filter(v => v !== null);
-  const avg7 = validVals.length ? Math.round(validVals.reduce((a,b)=>a+b,0)/validVals.length) : null;
-  const isToday = homeToggle.steps === 'today';
-  const displayVal = isToday ? todayVal : avg7;
-
-  let insight = '';
-  if (isToday && displayVal !== null && stepsGoal) {
-    const diff = stepsGoal - displayVal;
-    insight = diff > 0 ? fmtK(diff) + ' left to go' : fmtK(Math.abs(diff)) + ' over goal';
-  } else if (!isToday && avg7 !== null) {
-    if (stepsGoal) {
-      const diff = avg7 - stepsGoal;
-      insight = diff >= 0 ? 'Avg ' + fmtK(diff) + ' above daily goal' : 'Avg ' + fmtK(Math.abs(diff)) + ' below daily goal';
-    } else {
-      insight = validVals.length + ' of 7 days logged';
-    }
-  }
-
-  const right = isToday
-    ? (stepsGoal ? buildHomeProgressBar(displayVal||0, stepsGoal, 'var(--purple)', 'var(--purple)') : '')
-    : buildHomeBarChart(days, values, 'var(--purple)', fmtK, today);
-
-  el.innerHTML = '<div class="card" style="cursor:pointer;" onclick="showScreen(\'body\')">'
-    + '<div style="display:flex;align-items:flex-start;gap:14px;">'
-    + '<div style="flex:1;">'
-    + '<div style="font-family:var(--font-display);font-size:26px;font-weight:800;line-height:1;">'+(displayVal!==null?displayVal.toLocaleString():'—')+'</div>'
-    + '<div style="font-size:11px;color:var(--text3);margin-top:3px;">'+(isToday?'today':'7-day avg')+(stepsGoal?' / '+stepsGoal.toLocaleString()+' goal':'')+'</div>'
-    + (insight?'<div style="font-size:11px;color:var(--text2);margin-top:6px;">'+insight+'</div>':'')
-    + (isToday?right:'')
-    + '</div>'
-    + (!isToday?'<div style="flex:1.4;min-width:0;">'+right+'</div>':'')
-    + '</div></div>';
-}
-
+// Steps + Nutrition, merged into one card sharing a single Today/7-day
+// toggle (homeToggle.nutr). The steps row links through to Body; the rest
+// of the card links through to Nutrition.
 function renderHomeNutr() {
   const el = document.getElementById('home-nutrition');
   if (!el) return;
@@ -2870,6 +3273,45 @@ function renderHomeNutr() {
   const goal = typeof getActiveGoal === 'function' ? getActiveGoal() : null;
   const days = getLocal7Days();
   const isToday = homeToggle.nutr === 'today';
+
+  // ── Steps row ──
+  const stepsGoal = goal ? (goal.steps||0) : 0;
+  const stepsValues = days.map(d => {
+    const log = (state.bodyLogs||[]).find(l => l.date === d.date);
+    return log && log.steps ? parseInt(log.steps) : null;
+  });
+  const stepsToday = stepsValues[6];
+  const stepsValid = stepsValues.filter(v => v !== null);
+  const stepsAvg7 = stepsValid.length ? Math.round(stepsValid.reduce((a,b)=>a+b,0)/stepsValid.length) : null;
+  const stepsDisplay = isToday ? stepsToday : stepsAvg7;
+
+  let stepsInsight = '';
+  if (isToday && stepsDisplay !== null && stepsGoal) {
+    const diff = stepsGoal - stepsDisplay;
+    stepsInsight = diff > 0 ? fmtK(diff) + ' left to go' : fmtK(Math.abs(diff)) + ' over target';
+  } else if (!isToday && stepsAvg7 !== null) {
+    if (stepsGoal) {
+      const diff = stepsAvg7 - stepsGoal;
+      stepsInsight = diff >= 0 ? 'Avg ' + diff.toLocaleString() + ' above target' : 'Avg ' + Math.abs(diff).toLocaleString() + ' below target';
+    } else {
+      stepsInsight = stepsValid.length + ' of 7 days logged';
+    }
+  }
+
+  const stepsRight = isToday
+    ? (stepsGoal ? buildHomeProgressBar(stepsDisplay||0, stepsGoal, 'var(--purple)', 'var(--purple)') : '')
+    : buildHomeBarChart(days, stepsValues, 'var(--purple)', fmtK, today);
+
+  const stepsRow = '<div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:10px;border-bottom:0.5px solid var(--border);margin-bottom:10px;cursor:pointer;" onclick="event.stopPropagation();showScreen(\'body\')">'
+    + '<div style="flex:1;min-width:0;">'
+    + '<div style="font-size:10px;color:var(--purple);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">steps</div>'
+    + '<div style="font-family:var(--font-display);font-size:20px;font-weight:800;line-height:1;">'+(stepsDisplay!==null?stepsDisplay.toLocaleString():'—')+'</div>'
+    + (stepsGoal?'<div style="font-size:10px;color:var(--text3);margin-top:2px;">/ '+stepsGoal.toLocaleString()+(isToday?' target':' avg target')+'</div>':'')
+    + (stepsInsight?'<div style="font-size:10px;color:var(--text2);margin-top:4px;">'+stepsInsight+'</div>':'')
+    + (isToday?stepsRight:'')
+    + '</div>'
+    + (!isToday?'<div style="flex:1.4;min-width:0;">'+stepsRight+'</div>':'')
+    + '</div>';
 
   const getLog = (date) => {
     const q = state.nutritionQuickLog && state.nutritionQuickLog[date];
@@ -2882,7 +3324,7 @@ function renderHomeNutr() {
   const validLogs = weekLogs.filter(Boolean);
 
   const metrics = [
-    { key:'kcal',    label:'kcal',    color:'var(--accent)', goal:goal?.kcal,    fmt:v=>v,     fmtFull:v=>Math.round(v).toLocaleString(), overColor:'var(--red)',   warnOver:false },
+    { key:'kcal',    label:'kcal',    color:'var(--accent)', goal:goal?.kcal,    fmt:v=>v.toLocaleString(),     fmtFull:v=>Math.round(v).toLocaleString(), overColor:'var(--red)',   warnOver:false },
     { key:'protein', label:'protein', color:'var(--blue)',   goal:goal?.protein, fmt:v=>v+'g', fmtFull:v=>v+'g', overColor:'var(--accent)',warnOver:false },
     { key:'carbs',   label:'carbs',   color:'var(--amber)',  goal:goal?.carbs,   fmt:v=>v+'g', fmtFull:v=>v+'g', overColor:'var(--amber)', warnOver:true  },
     { key:'fats',    label:'fats',    color:'var(--red)',    goal:goal?.fats,    fmt:v=>v+'g', fmtFull:v=>v+'g', overColor:'var(--red)',   warnOver:true  },
@@ -2898,12 +3340,12 @@ function renderHomeNutr() {
     if (isToday && displayVal !== null && m.goal) {
       const diff = m.goal - displayVal;
       if (m.warnOver && displayVal > m.goal) insight = m.fmtFull(displayVal - m.goal) + ' over';
-      else insight = diff > 0 ? m.fmtFull(diff) + ' left' : (m.key==='protein' ? 'Goal hit ✓' : m.fmtFull(Math.abs(diff)) + ' over');
+      else insight = diff > 0 ? m.fmtFull(diff) + ' left' : (m.key==='protein' ? 'Target hit ✓' : m.fmtFull(Math.abs(diff)) + ' over');
     } else if (!isToday && avgVal !== null && m.goal) {
       const diff = avgVal - m.goal;
-      if (m.key === 'protein') insight = diff >= -5 ? 'Avg hitting goal ✓' : m.fmtFull(Math.abs(diff)) + ' below target avg';
+      if (m.key === 'protein') insight = diff >= -5 ? 'Avg hitting target ✓' : 'Avg '+m.fmtFull(Math.abs(diff))+' below target';
       else if (m.warnOver) insight = diff > 0 ? 'Avg '+m.fmtFull(diff)+' over target' : 'Avg within target ✓';
-      else insight = diff >= 0 ? 'Avg '+m.fmtFull(diff)+' above goal' : 'Avg '+m.fmtFull(Math.abs(diff))+' below goal';
+      else insight = diff >= 0 ? 'Avg '+m.fmtFull(diff)+' above target' : 'Avg '+m.fmtFull(Math.abs(diff))+' below target';
     }
 
     const right = isToday
@@ -2914,7 +3356,7 @@ function renderHomeNutr() {
       + '<div style="flex:1;min-width:0;">'
       + '<div style="font-size:10px;color:'+m.color+';text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">'+m.label+'</div>'
       + '<div style="font-family:var(--font-display);font-size:20px;font-weight:800;line-height:1;">'+(displayVal!==null?m.fmtFull(displayVal):'—')+'</div>'
-      + (m.goal?'<div style="font-size:10px;color:var(--text3);margin-top:2px;">/ '+m.fmtFull(m.goal)+(isToday?' goal':' avg goal')+'</div>':'')
+      + (m.goal?'<div style="font-size:10px;color:var(--text3);margin-top:2px;">/ '+m.fmtFull(m.goal)+(isToday?' target':' avg target')+'</div>':'')
       + (insight?'<div style="font-size:10px;color:var(--text2);margin-top:4px;">'+insight+'</div>':'')
       + (isToday?right:'')
       + '</div>'
@@ -2923,7 +3365,7 @@ function renderHomeNutr() {
   });
 
   el.innerHTML = '<div class="card" style="cursor:pointer;" onclick="showScreen(\'nutrition\')">'
-    + rows.join('') + '</div>';
+    + stepsRow + rows.join('') + '</div>';
 }
 
 function buildBwProgress(macro) {
@@ -2989,30 +3431,6 @@ function buildBwProgress(macro) {
       +   '<span style="font-size:10px;color:rgba(255,255,255,0.55);">' + target + ' lbs goal</span>'
       + '</div></div>';
   } catch(e) { return ''; }
-}
-
-// Total macrocycle volume over time, rendered as an area line chart card for
-// the Plan page. One point per logged session (week+day with volume > 0).
-function buildPlanVolumeChartCard(macro) {
-  const series = getMacroVolumeSeries(macro);
-  if (series.length < 2) {
-    return `<div class="card" style="margin-bottom:14px;">
-      <h3 style="margin-bottom:4px;">Volume over time</h3>
-      <div style="font-size:11px;color:var(--text3);padding:20px 0;text-align:center;">Log a few sessions to see your volume trend</div>
-    </div>`;
-  }
-  const points = series.map(p => ({
-    label: p.date.toISOString().slice(5,10).split('-').reverse().join('-'),
-    y: p.vol
-  }));
-  const totalVol = series.reduce((s,p) => s + p.vol, 0);
-  return `<div class="card" style="margin-bottom:14px;">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;">
-      <h3>Volume over time</h3>
-      <span style="font-size:11px;color:var(--text3);">${Math.round(totalVol).toLocaleString()} kg total</span>
-    </div>
-    ${buildAreaLineChart(points, 'var(--blue)')}
-  </div>`;
 }
 
 // ════════════════════════════════════════════════
@@ -3918,7 +4336,7 @@ function buildAreaLineChart(points, color) {
   // X axis labels — show ~3 evenly spaced
   const labelStep = Math.max(1, Math.floor(n / 3));
   const xLabels = points.map((p, i) => (i === 0 || i === n-1 || i % labelStep === 0)
-    ? `<text x="${xPos(i).toFixed(1)}" y="${H-4}" text-anchor="${i===0?'start':i===n-1?'end':'middle'}" font-size="9" fill="var(--text3)" font-family="var(--font-mono)">${p.label}</text>`
+    ? `<text x="${xPos(i).toFixed(1)}" y="${H-4}" text-anchor="${i===0?'start':i===n-1?'end':'middle'}" font-size="9" fill="var(--text)" font-family="var(--font-mono)">${p.label}</text>`
     : ''
   ).join('');
 
@@ -4117,15 +4535,6 @@ function saveBodyLog() {
 // ════════════════════════════════════════════════
 // RENDER: NUTRITION
 // ════════════════════════════════════════════════
-let nutrTab = 'day';
-function switchNutrTab(tab) {
-  nutrTab = tab;
-  document.getElementById('nutr-tab-day').classList.toggle('active', tab==='day');
-  document.getElementById('nutr-tab-week').classList.toggle('active', tab==='week');
-  document.getElementById('nutr-daily-view').style.display = tab==='day' ? '' : 'none';
-  document.getElementById('nutr-weekly-view').style.display = tab==='week' ? '' : 'none';
-  renderNutrition();
-}
 
 // ════════════════════════════════════════════════
 // NUTRITION — new daily view
@@ -4261,15 +4670,11 @@ function deleteBodyLog(date) {
 }
 
 function getLocalToday() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,'0');
-  const day = String(d.getDate()).padStart(2,'0');
-  return y + '-' + m + '-' + day;
+  return toLocalDateStr(new Date());
 }
 
 function renderNutrDaily() {
-  const el = document.getElementById('nutr-daily-view');
+  const el = document.getElementById('nutr-diary');
   if (!el) return;
   const today = getLocalToday();
   if (!nutrSelectedDate) nutrSelectedDate = today;
@@ -4407,10 +4812,10 @@ function renderNutrHero() {
       <button onclick="openNutrQuickAdd()" aria-label="Quick add" style="width:auto;height:26px;padding:0 10px;border-radius:13px;font-size:11px;font-weight:500;white-space:nowrap;">⚡ Quick add</button>
     </div>
     <div class="hero-label">${dateLabel}</div>
-    <div class="hero-value">${totals.kcal}<span class="unit">kcal</span></div>
-    <div class="hero-sub">${kcalGoal ? `/ ${kcalGoal} goal · ${left >= 0 ? left + ' remaining' : Math.abs(left) + ' over'}` : 'No goal set'}</div>
+    <div class="hero-value">${totals.kcal.toLocaleString()}<span class="unit">kcal</span></div>
+    <div class="hero-sub">${kcalGoal ? `/ ${kcalGoal.toLocaleString()} goal · ${left >= 0 ? left.toLocaleString() + ' remaining' : Math.abs(left).toLocaleString() + ' over'}` : 'No goal set'}</div>
     <div class="hero-callouts">${macroCallouts}</div>
-    ${kcalGoal ? `<div class="hero-progress-row"><span>Goal ${kcalGoal} kcal</span><span>${left >= 0 ? left + ' left' : Math.abs(left) + ' over'}</span></div>
+    ${kcalGoal ? `<div class="hero-progress-row"><span>Goal ${kcalGoal.toLocaleString()} kcal</span><span>${left >= 0 ? left.toLocaleString() + ' left' : Math.abs(left).toLocaleString() + ' over'}</span></div>
     <div class="hero-progress-track"><div class="hero-progress-fill" style="width:${pct}%"></div></div>` : ''}
   </div>`;
 }
@@ -4444,7 +4849,7 @@ function renderNutrDiary() {
         padding:10px 12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
         <div>
           <div style="font-size:12px;color:var(--accent);font-weight:600;">⚡ Quick log active</div>
-          <div style="font-size:11px;color:var(--text2);margin-top:2px;">${q.kcal} kcal · P:${q.protein}g C:${q.carbs}g F:${q.fats}g</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px;">${q.kcal.toLocaleString()} kcal · P:${Math.round(q.protein)}g C:${Math.round(q.carbs)}g F:${Math.round(q.fats)}g</div>
           <div style="font-size:10px;color:var(--text3);margin-top:2px;">Meal entries below are ignored for this day's totals</div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -4485,7 +4890,7 @@ function renderNutrDiary() {
               <div style="font-size:11px;color:var(--text2);margin-top:2px;">${servingLabel}${item.brand ? ` · ${item.brand}` : ''}</div>
             </div>
             <div style="text-align:right;flex-shrink:0;">
-              <div style="font-size:13px;font-weight:600;color:var(--text);">${item.kcal||0} kcal</div>
+              <div style="font-size:13px;font-weight:600;color:var(--text);">${(item.kcal||0).toLocaleString()} kcal</div>
               <div style="font-size:11px;color:var(--text3);margin-top:2px;">P:${Math.round(item.protein||0)}g C:${Math.round(item.carbs||0)}g F:${Math.round(item.fats||0)}g</div>
             </div>
           </div>
@@ -4511,8 +4916,8 @@ function renderNutrDiary() {
       const prevTotKcal = prevMealItems.reduce((a,b) => a + (b.kcal||0), 0);
       const rest = prevMealItems.length - 1;
       const label = rest > 0
-        ? `${prevMealItems[0].name} and ${rest} more · ${prevTotKcal} kcal`
-        : `${prevMealItems[0].name} · ${prevTotKcal} kcal`;
+        ? `${prevMealItems[0].name} and ${rest} more · ${prevTotKcal.toLocaleString()} kcal`
+        : `${prevMealItems[0].name} · ${prevTotKcal.toLocaleString()} kcal`;
       const swipeId = `swipe-yesterday-${meal.toLowerCase()}`;
       copyRow = `
         <div style="border-top:0.5px solid var(--border);overflow:hidden;border-radius:0 0 var(--r) var(--r);">
@@ -4532,7 +4937,7 @@ function renderNutrDiary() {
           <div>
             <div style="font-family:var(--font-display);font-size:16px;font-weight:700;">${meal}</div>
             <div style="font-size:11px;color:var(--text3);margin-top:2px;">
-              ${hasItems ? `${tot.kcal} kcal · P:${tot.p}g C:${tot.c}g F:${tot.f}g` : 'Nothing logged yet'}
+              ${hasItems ? `${tot.kcal.toLocaleString()} kcal · P:${tot.p}g C:${tot.c}g F:${tot.f}g` : 'Nothing logged yet'}
             </div>
           </div>
           <div style="display:flex;gap:6px;align-items:center;">
@@ -4699,19 +5104,13 @@ function nutrShiftDate(delta) {
 // so a capture-phase click listener suppresses that tap whenever the
 // gesture actually moved far enough to count as a swipe.
 //
-// Rewritten to use a single gesture token rather than relying on a
-// re-queried `.hero-card` element mid-animation: the previous version
-// looked up the card by element reference at multiple points across an
-// async timeout + rAF chain, and since renderNutrHero() replaces the
-// card's innerHTML (and therefore its DOM node) every time the date
-// changes, that reference could go stale or be re-queried at the wrong
-// moment — producing a double-shift on one swipe direction and a
-// no-op-looking shift (animation plays, date never updates) on the
-// other. Each call to commitSwipe() now does exactly one thing: animate
-// the *current* card out, call nutrShiftDate exactly once with exactly
-// one delta, then animate the freshly-rendered card in. A monotonically
-// increasing gesture id guards against any overlap if a new gesture
-// somehow starts before the previous animation's timers have cleared.
+// commitSwipe() animates the current card out, calls nutrShiftDate()
+// exactly once, then animates the freshly-rendered card in. renderNutrHero()
+// replaces the card's innerHTML (and therefore its DOM node) on every date
+// change, so the card is re-queried via getCard() rather than held by
+// reference. `busy` plus a monotonically increasing gesture id stop a
+// stray event from triggering a second date change or animating a card
+// that a newer render has already replaced.
 let _nutrHeroSwipeInited = false;
 function initNutrHeroSwipe() {
   if (_nutrHeroSwipeInited) return;
@@ -4908,7 +5307,7 @@ function renderNutrAddList() {
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
           <div style="font-size:10px;color:var(--text3);margin-top:2px;">
-            ${item.per100kcal} kcal / 100g · P:${item.per100p}g C:${item.per100c}g F:${item.per100f}g
+            ${item.per100kcal.toLocaleString()} kcal / 100g · P:${Math.round(item.per100p)}g C:${Math.round(item.per100c)}g F:${Math.round(item.per100f)}g
             ${brand ? ` · ${brand}` : ''}
           </div>
         </div>
@@ -5467,7 +5866,7 @@ function renderPreviousMeals() {
     + '<div style="flex:1;min-width:0;">'
     + '<div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + item.name + '</div>'
     + '<div style="font-size:10px;color:var(--text3);margin-top:2px;">'
-    + item.per100kcal + ' kcal / 100g · P:' + item.per100p + 'g C:' + item.per100c + 'g F:' + item.per100f + 'g'
+    + item.per100kcal.toLocaleString() + ' kcal / 100g · P:' + Math.round(item.per100p) + 'g C:' + Math.round(item.per100c) + 'g F:' + Math.round(item.per100f) + 'g'
     + (brand ? ' · ' + brand : '')
     + '</div>'
     + '</div>'
@@ -5516,7 +5915,7 @@ function openNutrServingModal() {
       ingList.innerHTML = recipe.ingredients.map(ing =>
         `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:0.5px solid var(--border);">
           <span style="font-size:12px;color:var(--text2);">${ing.name}</span>
-          <span style="font-size:12px;color:var(--text3);">${ing.grams}g · ${ing.kcal} kcal</span>
+          <span style="font-size:12px;color:var(--text3);">${ing.grams}g · ${ing.kcal.toLocaleString()} kcal</span>
         </div>`
       ).join('');
       ingPanel.style.display = 'block';
@@ -5554,7 +5953,7 @@ function updateServingPreview() {
   const pPer1    = nutrPendingProduct.per100p / 100;
   const cPer1    = nutrPendingProduct.per100c / 100;
   const fPer1    = nutrPendingProduct.per100f / 100;
-  document.getElementById('sp-kcal').textContent = Math.round(kcalPer1 * total);
+  document.getElementById('sp-kcal').textContent = Math.round(kcalPer1 * total).toLocaleString();
   document.getElementById('sp-protein').textContent = Math.round(pPer1 * total) + 'g';
   document.getElementById('sp-carbs').textContent = Math.round(cPer1 * total) + 'g';
   document.getElementById('sp-fats').textContent = Math.round(fPer1 * total) + 'g';
@@ -5616,7 +6015,7 @@ function updateManualPreview() {
   const p    = Math.round(parseFloat(document.getElementById('nutr-manual-protein').value)||0);
   const c    = Math.round(parseFloat(document.getElementById('nutr-manual-carbs').value)||0);
   const f    = Math.round(parseFloat(document.getElementById('nutr-manual-fats').value)||0);
-  document.getElementById('nutr-manual-preview').textContent = 'Total: ' + kcal + ' kcal · P:' + p + 'g C:' + c + 'g F:' + f + 'g';
+  document.getElementById('nutr-manual-preview').textContent = 'Total: ' + kcal.toLocaleString() + ' kcal · P:' + p + 'g C:' + c + 'g F:' + f + 'g';
 }
 
 function saveManualEntry() {
@@ -5761,7 +6160,7 @@ function updateEditPreview() {
     f    = Math.round(per100f / 100 * total);
   }
   document.getElementById('nutr-edit-preview').textContent =
-    kcal + ' kcal · P:' + p + 'g C:' + c + 'g F:' + f + 'g';
+    kcal.toLocaleString() + ' kcal · P:' + p + 'g C:' + c + 'g F:' + f + 'g';
 }
 
 function saveEditFoodEntry() {
@@ -5816,18 +6215,16 @@ function saveEditFoodEntry() {
 }
 
 function renderNutrition() {
-  if (nutrTab === 'day') {
-    if (!nutrSelectedDate) nutrSelectedDate = new Date().toISOString().split('T')[0];
-    renderNutrDaily();
-  } else {
-    renderNutrWeekly([...state.nutritionLogs].sort((a,b)=>b.date.localeCompare(a.date)));
-  }
+  if (!nutrSelectedDate) nutrSelectedDate = getLocalToday();
+  renderNutrDaily();
 }
 
 // ── Legacy renderNutrDaily (replaced above) ────────────────────────────────
 
-function renderNutrWeekly(logs) {
-  const el = document.getElementById('nutr-weekly-view');
+function renderHomeNutrPies() {
+  const el = document.getElementById('home-nutr-pies');
+  if (!el) return;
+  const logs = [...(state.nutritionLogs||[])].sort((a,b)=>b.date.localeCompare(a.date));
   if (!logs.length) {
     el.innerHTML = `<div class="empty-state"><p>Log at least a few days to see weekly summaries.</p></div>`;
     return;
@@ -5883,7 +6280,7 @@ function renderNutrWeekly(logs) {
           <div style="font-family:var(--font-display);font-weight:700;font-size:13px;">${weekLabel}</div>
           <div style="font-size:12px;color:var(--text2);">${entries.length} days logged</div>
         </div>
-        <span class="badge badge-green">${Math.round(avgKcal)} kcal avg</span>
+        <span class="badge badge-green">${Math.round(avgKcal).toLocaleString()} kcal avg</span>
       </div>
       <div style="display:flex;align-items:center;gap:16px;">
         <div>${pie}</div>
@@ -5975,6 +6372,25 @@ function setTheme(themeId) {
   if (activeScreen) showScreen(activeScreen.id.replace('screen-', ''));
 }
 
+// Dark/light mode toggle — independent of the accent theme above. Only
+// flips the neutral surface/text/border tokens (see [data-mode="light"]
+// in the stylesheet); hero/accent colours stay the same in both modes.
+function setMode(mode) {
+  state.mode = mode;
+  document.body.setAttribute('data-mode', mode);
+  save();
+  renderModeToggle();
+}
+
+function renderModeToggle() {
+  const el = document.getElementById('mode-toggle-row');
+  if (!el) return;
+  const mode = state.mode || 'dark';
+  el.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+}
+
 function renderThemeSwatches() {
   const el = document.getElementById('theme-swatch-grid');
   if (!el) return;
@@ -5997,6 +6413,7 @@ function renderThemeSwatches() {
 
 function renderSettings() {
   renderThemeSwatches();
+  renderModeToggle();
   const raw = localStorage.getItem('bloc_state') || '';
   const kb = (new Blob([raw]).size / 1024).toFixed(1);
   const el = document.getElementById('storage-info');
@@ -6012,7 +6429,7 @@ function exportData() {
   const blob = new Blob([payload], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const date = new Date().toISOString().split('T')[0];
+  const date = getLocalToday();
   a.href = url;
   a.download = `bloc-backup-${date}.json`;
   document.body.appendChild(a);
@@ -6171,7 +6588,7 @@ function exportLibrary() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'bloc-exercise-library-' + new Date().toISOString().split('T')[0] + '.json';
+  a.download = 'bloc-exercise-library-' + getLocalToday() + '.json';
   document.body.appendChild(a); a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
@@ -6224,7 +6641,7 @@ function renderGoals() {
     return;
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalToday();
   const sortedGoals = state.goals.slice().sort((a,b)=>b.startDate.localeCompare(a.startDate));
   const activeIdx = state.goals.findIndex(g => g.startDate <= today && g.endDate >= today);
 
@@ -6235,7 +6652,7 @@ function renderGoals() {
     const g = state.goals[activeIdx];
     const macro = macros.find(m => m.id === g.macroId);
     const callouts = [
-      g.kcal    ? { lbl: 'Kcal',    val: g.kcal } : null,
+      g.kcal    ? { lbl: 'Kcal',    val: g.kcal.toLocaleString() } : null,
       g.protein ? { lbl: 'Protein', val: g.protein + 'g' } : null,
       g.carbs   ? { lbl: 'Carbs',   val: g.carbs + 'g' } : null,
       g.fats    ? { lbl: 'Fats',    val: g.fats + 'g' } : null,
@@ -6277,7 +6694,7 @@ function renderGoals() {
               ${isFuture ? '<span class="badge" style="background:var(--surface3);color:var(--text2);">Upcoming</span>' : ''}
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-              ${g.kcal    ? `<div style="font-size:12px;color:var(--text2);"><span style="color:var(--text3);">kcal </span>${g.kcal}</div>` : ''}
+              ${g.kcal    ? `<div style="font-size:12px;color:var(--text2);"><span style="color:var(--text3);">kcal </span>${g.kcal.toLocaleString()}</div>` : ''}
               ${g.steps   ? `<div style="font-size:12px;color:var(--text2);"><span style="color:var(--text3);">steps </span>${parseInt(g.steps).toLocaleString()}</div>` : ''}
               ${g.protein ? `<div style="font-size:12px;color:var(--text2);"><span style="color:var(--text3);">protein </span>${g.protein}g</div>` : ''}
               ${g.carbs   ? `<div style="font-size:12px;color:var(--text2);"><span style="color:var(--text3);">carbs </span>${g.carbs}g</div>` : ''}
@@ -6301,7 +6718,7 @@ function renderGoals() {
 
 function getActiveGoal() {
   if (!state.goals) return null;
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalToday();
   return state.goals.find(g => g.startDate <= today && g.endDate >= today) || null;
 }
 
@@ -6350,7 +6767,7 @@ function saveGoal() {
 
 function buildGoalsHomeSection(goal) {
   if (!goal) return '';
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalToday();
   const todayNutr = state.nutritionLogs.find(l => l.date === today) || {};
   const todayBody = state.bodyLogs.find(l => l.date === today) || {};
   const todaySteps = parseInt(todayBody.steps) || 0;
@@ -6368,7 +6785,7 @@ function buildGoalsHomeSection(goal) {
   const weekLogs = [];
   for (let i = 0; i < daysElapsed; i++) {
     const d = new Date(); d.setDate(d.getDate() - (daysElapsed - 1 - i));
-    const ds = d.toISOString().split('T')[0];
+    const ds = toLocalDateStr(d);
     const n = state.nutritionLogs.find(l => l.date === ds) || {};
     const b = state.bodyLogs.find(l => l.date === ds) || {};
     weekLogs.push({ steps: parseInt(b.steps)||0, kcal: parseInt(n.kcal)||0 });
@@ -6406,7 +6823,7 @@ function buildGoalsHomeSection(goal) {
     const kcalLeft = Math.max(0, (goal.kcal||0) - todayKcal);
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">';
     html += '<span style="font-size:12px;color:var(--text2);">kcal</span>';
-    html += '<span style="font-size:12px;">' + todayKcal + ' / ' + goal.kcal + (kcalLeft > 0 ? ' <span style="color:var(--text3);">(' + kcalLeft + ' left)</span>' : ' <span style="color:var(--accent);">✓</span>') + '</span></div>';
+    html += '<span style="font-size:12px;">' + todayKcal.toLocaleString() + ' / ' + goal.kcal.toLocaleString() + (kcalLeft > 0 ? ' <span style="color:var(--text3);">(' + kcalLeft.toLocaleString() + ' left)</span>' : ' <span style="color:var(--accent);">✓</span>') + '</span></div>';
     html += bar(todayKcal, goal.kcal);
     html += '<div style="height:8px;"></div>';
   }
@@ -6456,7 +6873,7 @@ function buildGoalsHomeSection(goal) {
     const weekNutrLogs = [];
     for (let i = 0; i < daysElapsed; i++) {
       const d = new Date(); d.setDate(d.getDate() - (daysElapsed - 1 - i));
-      const ds = d.toISOString().split('T')[0];
+      const ds = toLocalDateStr(d);
       const n = state.nutritionLogs.find(l => l.date === ds) || {};
       weekNutrLogs.push(n);
     }
@@ -6476,10 +6893,10 @@ function buildGoalsHomeSection(goal) {
       } else html += '<div style="height:6px;"></div>';
     }
     if (goal.kcal) {
-      html += '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="color:var(--text2);">Avg kcal</span><span>' + avgKcal + ' / ' + goal.kcal + '</span></div>';
+      html += '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="color:var(--text2);">Avg kcal</span><span>' + avgKcal.toLocaleString() + ' / ' + goal.kcal.toLocaleString() + '</span></div>';
       html += bar(avgKcal, goal.kcal);
       if (daysLeft > 0 && kcalNeededPerDay > 0) {
-        html += '<div style="font-size:11px;color:var(--amber);margin-top:3px;margin-bottom:4px;">Need ' + kcalNeededPerDay + ' kcal/day for remaining ' + daysLeft + ' day' + (daysLeft !== 1 ? 's' : '') + ' to hit weekly goal</div>';
+        html += '<div style="font-size:11px;color:var(--amber);margin-top:3px;margin-bottom:4px;">Need ' + kcalNeededPerDay.toLocaleString() + ' kcal/day for remaining ' + daysLeft + ' day' + (daysLeft !== 1 ? 's' : '') + ' to hit weekly goal</div>';
       } else html += '<div style="height:4px;"></div>';
     }
     if (goal.protein) {
@@ -6855,7 +7272,7 @@ function renderFoodLibEditor() {
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);">
       <div style="flex:1;min-width:0;cursor:pointer;" onclick="openFoodLibEntry(${idx})">
         <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px;">${item.per100kcal} kcal / 100g · P:${item.per100p}g C:${item.per100c}g F:${item.per100f}g${rss}${brand}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">${item.per100kcal.toLocaleString()} kcal / 100g · P:${Math.round(item.per100p)}g C:${Math.round(item.per100c)}g F:${Math.round(item.per100f)}g${rss}${brand}</div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0;margin-left:10px;">
         <button class="btn btn-sm" style="padding:5px 10px;" onclick="shareFoodLibItem(${idx})" title="Share"><svg viewBox="0 0 24 24" width="13" height="13" style="stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><polyline points="9 10 5 10 5 20 19 20 19 10 15 10"/><polyline points="12 3 8 7 12 3 16 7"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
@@ -6889,10 +7306,10 @@ function updateFlePreview() {
   const carbs   = parseFloat(document.getElementById('fle-carbs').value) || 0;
   const fats    = parseFloat(document.getElementById('fle-fats').value) || 0;
   const rss     = parseFloat(document.getElementById('fle-rss').value) || null;
-  let preview = kcal + ' kcal · P:' + protein + 'g C:' + carbs + 'g F:' + fats + 'g per 100g';
+  let preview = kcal.toLocaleString() + ' kcal · P:' + protein + 'g C:' + carbs + 'g F:' + fats + 'g per 100g';
   if (rss) {
     const r = rss / 100;
-    preview += ' · Per RSS (' + rss + 'g): ' + Math.round(kcal*r) + ' kcal P:' + Math.round(protein*r) + 'g C:' + Math.round(carbs*r) + 'g F:' + Math.round(fats*r) + 'g';
+    preview += ' · Per RSS (' + rss + 'g): ' + Math.round(kcal*r).toLocaleString() + ' kcal P:' + Math.round(protein*r) + 'g C:' + Math.round(carbs*r) + 'g F:' + Math.round(fats*r) + 'g';
   }
   document.getElementById('fle-preview').textContent = preview;
 }
@@ -6987,7 +7404,7 @@ function renderRecipeIngredients() {
       <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--border);">
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${ing.name}</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px;">${ing.grams}g · ${ing.kcal} kcal · P:${ing.protein}g C:${ing.carbs}g F:${ing.fats}g</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">${ing.grams}g · ${ing.kcal.toLocaleString()} kcal · P:${Math.round(ing.protein)}g C:${Math.round(ing.carbs)}g F:${Math.round(ing.fats)}g</div>
         </div>
         <div style="display:flex;gap:4px;flex-shrink:0;margin-left:8px;">
           <button onclick="editRecipeIngredient(${idx})" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px 8px;font-size:14px;">✎</button>
@@ -7001,10 +7418,10 @@ function renderRecipeIngredients() {
   }), {kcal:0, p:0, c:0, f:0});
   const servings = parseFloat(document.getElementById('recipe-servings-input').value) || 1;
   const perServing = servings > 1
-    ? ` · Per serving: ${Math.round(tot.kcal/servings)} kcal P:${Math.round(tot.p/servings)}g C:${Math.round(tot.c/servings)}g F:${Math.round(tot.f/servings)}g`
+    ? ` · Per serving: ${Math.round(tot.kcal/servings).toLocaleString()} kcal P:${Math.round(tot.p/servings)}g C:${Math.round(tot.c/servings)}g F:${Math.round(tot.f/servings)}g`
     : '';
   document.getElementById('recipe-ing-totals').textContent = recipeIngredients.length
-    ? `Total: ${tot.kcal} kcal · P:${tot.p}g C:${tot.c}g F:${tot.f}g${perServing}`
+    ? `Total: ${tot.kcal.toLocaleString()} kcal · P:${tot.p}g C:${tot.c}g F:${tot.f}g${perServing}`
     : 'No ingredients yet';
 }
 
@@ -7030,7 +7447,7 @@ function editRecipeIngredient(idx) {
     const per100c    = Math.round(ing.per1c    * 100 * 10) / 10;
     const per100f    = Math.round(ing.per1f    * 100 * 10) / 10;
     document.getElementById('recipe-edit-ing-per100-info').textContent =
-      `Per 100g: ${per100kcal} kcal · P:${per100p}g C:${per100c}g F:${per100f}g`;
+      `Per 100g: ${per100kcal.toLocaleString()} kcal · P:${per100p}g C:${per100c}g F:${per100f}g`;
   } else {
     document.getElementById('recipe-edit-ing-grams-row').style.display = 'none';
     document.getElementById('recipe-edit-ing-manual-row').style.display = '';
@@ -7066,7 +7483,7 @@ function updateRecipeIngredientEditPreview() {
     f    = Math.round((parseFloat(document.getElementById('recipe-edit-ing-fats').value)     || 0) * servings * 10) / 10;
   }
   document.getElementById('recipe-edit-ing-preview').textContent =
-    `Total: ${kcal} kcal · P:${p}g C:${c}g F:${f}g`;
+    `Total: ${kcal.toLocaleString()} kcal · P:${p}g C:${c}g F:${f}g`;
 }
 
 function saveRecipeIngredientEdit() {
@@ -7166,7 +7583,7 @@ function updateRecipeServingPreview() {
   const r = grams / 100;
   const i = recipePendingIngredient;
   document.getElementById('recipe-serving-preview').textContent =
-    `${Math.round(i.per100kcal*r)} kcal · P:${Math.round(i.per100p*r)}g C:${Math.round(i.per100c*r)}g F:${Math.round(i.per100f*r)}g`;
+    `${Math.round(i.per100kcal*r).toLocaleString()} kcal · P:${Math.round(i.per100p*r)}g C:${Math.round(i.per100c*r)}g F:${Math.round(i.per100f*r)}g`;
 }
 
 function confirmRecipeIngredient() {
@@ -7210,7 +7627,7 @@ function updateRecipeManualPreview() {
   const p    = Math.round((parseFloat(document.getElementById('recipe-manual-protein').value)||0) * servings);
   const c    = Math.round((parseFloat(document.getElementById('recipe-manual-carbs').value)||0) * servings);
   const f    = Math.round((parseFloat(document.getElementById('recipe-manual-fats').value)||0) * servings);
-  document.getElementById('recipe-manual-preview').textContent = 'Total: ' + kcal + ' kcal · P:' + p + 'g C:' + c + 'g F:' + f + 'g';
+  document.getElementById('recipe-manual-preview').textContent = 'Total: ' + kcal.toLocaleString() + ' kcal · P:' + p + 'g C:' + c + 'g F:' + f + 'g';
 }
 
 function confirmRecipeManual() {
@@ -7331,7 +7748,7 @@ function renderRecipeList() {
       ? ingredients.map(ing => `
           <div style="display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;border-bottom:0.5px solid var(--border);">
             <span style="font-size:11px;color:var(--text2);">${ing.name}</span>
-            <span style="font-size:11px;color:var(--text3);">${ing.grams}g · ${ing.kcal} kcal</span>
+            <span style="font-size:11px;color:var(--text3);">${ing.grams}g · ${ing.kcal.toLocaleString()} kcal</span>
           </div>`).join('')
       : `<div style="font-size:11px;color:var(--text3);padding:4px 0;">No ingredients recorded</div>`;
 
@@ -7342,7 +7759,7 @@ function renderRecipeList() {
             <div style="font-size:15px;font-weight:700;font-family:var(--font-display);">${r.name}</div>
             <div style="font-size:11px;color:var(--text3);margin-top:3px;">
               ${r.servings} serving${r.servings !== 1 ? 's' : ''} ·
-              ${r.per_serving_kcal} kcal/serving ·
+              ${r.per_serving_kcal.toLocaleString()} kcal/serving ·
               P:${r.per_serving_p}g C:${r.per_serving_c}g F:${r.per_serving_f}g
             </div>
           </div>
@@ -7353,7 +7770,7 @@ function renderRecipeList() {
         </div>
         <div style="background:var(--surface2);border-radius:var(--r-sm);padding:8px 10px;margin-top:4px;">
           <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">
-            ${ingredients.length} ingredient${ingredients.length !== 1 ? 's' : ''} · Total: ${r.total_kcal} kcal
+            ${ingredients.length} ingredient${ingredients.length !== 1 ? 's' : ''} · Total: ${r.total_kcal.toLocaleString()} kcal
           </div>
           ${ingList}
         </div>
