@@ -919,16 +919,18 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
   }
 
   // ── Keyboard layout handler ───────────────────────────────────────────────
-  // The modal overlay is position:fixed which in iOS standalone tracks the
-  // layout viewport (= html/body = --app-height). Because setAppHeight() always
-  // updates --app-height to visualViewport.height, the overlay naturally shrinks
-  // when the keyboard opens. align-items:flex-end then places the sheet just
-  // above the keyboard automatically — no JS overlay manipulation needed.
+  // When the keyboard opens in iOS standalone, --app-height (and therefore
+  // the position:fixed overlay) shrinks to the visible area, which naturally
+  // places modal sheets above the keyboard via align-items:flex-end. HOWEVER,
+  // max-height:Xdvh on the sheet does NOT reliably shrink with the keyboard in
+  // iOS standalone — dvh may remain based on the full screen height. This
+  // leaves the sheet taller than the overlay, causing it to overflow upward off
+  // the screen and hiding the search input above the visible area.
+  // Fix: explicitly cap sheet max-height to vvh when keyboard is open.
   //
-  // For inputs in #content (Train set rows), the shrunken layout may push them
-  // below the visible area. We fix that by adding temporary padding-bottom so
-  // the scroll range extends past them, then explicitly scrolling the focused
-  // input to the centre of the visible region above the keyboard.
+  // For inputs in #content (Train set rows), the shrunken layout pushes inputs
+  // off-screen. We extend the scroll range with padding-bottom then scroll
+  // directly via scrollTop (more reliable than scrollBy on iOS momentum scroll).
   function handleKeyboard() {
     var open = isKeyboardOpen();
     var vvh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
@@ -937,25 +939,46 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
     var nav = document.getElementById('nav');
     if (nav) nav.style.display = open ? 'none' : '';
 
-    // 2. Screen content — scroll focused input into visible area
+    // 2. Modal sheets — cap max-height to the visible area so the sheet fits
+    //    within the (already-shrunken) overlay and all content remains on-screen
+    document.querySelectorAll('.modal-overlay.open .modal-sheet').forEach(function(sheet) {
+      if (open) {
+        if (!sheet.dataset.origMaxHeight) {
+          sheet.dataset.origMaxHeight = sheet.style.maxHeight || '';
+        }
+        sheet.style.maxHeight = Math.max(200, vvh - 20) + 'px';
+      } else {
+        if (sheet.dataset.origMaxHeight !== undefined) {
+          sheet.style.maxHeight = sheet.dataset.origMaxHeight;
+          delete sheet.dataset.origMaxHeight;
+        }
+      }
+    });
+
+    // 3. Screen content — scroll focused input into the visible region
     var content = document.getElementById('content');
     if (!content) return;
 
     if (open) {
+      // Extend scroll range so inputs near the bottom of a card can scroll
+      // up above the keyboard edge
       content.style.paddingBottom = '440px';
       setTimeout(function() {
         var el = document.activeElement;
         if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
-        // Modal inputs are inside the naturally-shrunken overlay — skip them
+        // Skip modal inputs — the sheet max-height fix handles those
         if (el.closest && el.closest('.modal-overlay')) return;
         var rect = el.getBoundingClientRect();
+        // Centre the input in the visible region above the keyboard
         var targetCenter = vvh / 2;
         var currentCenter = rect.top + rect.height / 2;
         var delta = currentCenter - targetCenter;
         if (Math.abs(delta) > 10) {
-          content.scrollBy({ top: delta, behavior: 'smooth' });
+          // Direct scrollTop assignment is more reliable than scrollBy({smooth})
+          // on iOS with -webkit-overflow-scrolling:touch
+          content.scrollTop = content.scrollTop + delta;
         }
-      }, 200);
+      }, 350);
     } else {
       content.style.paddingBottom = '';
     }
