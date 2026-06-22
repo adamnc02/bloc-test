@@ -879,23 +879,27 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
   }
 
   // ── Keyboard detection ────────────────────────────────────────────────────
-  // On iOS standalone, window.innerHeight = full layout viewport (never
-  // changes when keyboard opens). window.visualViewport.height = the area
-  // actually visible above the keyboard. Their difference is the keyboard
-  // height. A threshold of 50px avoids false positives from tiny resizes.
-  function getKeyboardHeight() {
-    if (!window.visualViewport) return 0;
-    return Math.max(0, window.innerHeight - window.visualViewport.height);
+  // In iOS standalone mode window.innerHeight shrinks WITH the keyboard,
+  // making innerHeight - visualViewport.height ≈ 0 — useless for detection.
+  // window.screen.height is the physical screen height and never changes.
+  // Comparing visualViewport.height against 75% of screen.height reliably
+  // distinguishes "keyboard open" from any legitimate small resize.
+  function isKeyboardOpen() {
+    if (!window.visualViewport) return false;
+    var vvh = window.visualViewport.height;
+    var screenH = (window.screen && window.screen.height) || (vvh * 2);
+    return vvh < screenH * 0.75;
   }
 
   // ── App height ────────────────────────────────────────────────────────────
-  // Only update --app-height when the keyboard is closed. Previously this
-  // function ran on every visualViewport resize, which shrunk the whole
-  // layout when the keyboard opened and pushed inputs into unreachable dead
-  // space. Leaving the layout at full height when the keyboard is open means
-  // content stays accessible by scrolling #content up.
+  // Only update --app-height when the keyboard is closed. When the keyboard
+  // is open both window.innerHeight and visualViewport.height shrink in iOS
+  // standalone, so without this guard the whole layout squishes and inputs
+  // end up in unreachable dead space. Leaving --app-height at the pre-keyboard
+  // value keeps the layout at full height; content is then scrollable up past
+  // the keyboard with explicit padding (see handleKeyboard below).
   function setAppHeight() {
-    if (getKeyboardHeight() > 50) return; // keyboard open — keep full height
+    if (isKeyboardOpen()) return;
     var measured = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
     var h = measured + measureEnv('safe-area-inset-top');
     if (window.screen && window.screen.height) {
@@ -916,66 +920,54 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
   }
 
   // ── Keyboard layout handler ───────────────────────────────────────────────
-  // Runs whenever the keyboard opens or closes (visualViewport resize event).
-  // Handles three things:
-  //  1. Nav visibility  — hide nav while keyboard is up (already no safe-area
-  //     interference; now also avoids the tab bar intercept issue on Train).
-  //  2. Modal repositioning — modal overlays are position:fixed relative to
-  //     the layout viewport, so their sheets end up behind the keyboard.
-  //     padding-bottom on the flex overlay lifts the sheet above the keyboard.
-  //     Sheet max-height is capped to the visual viewport height so internal
-  //     scroll lists get exactly the right amount of room.
-  //  3. Screen-content scroll — adds temporary padding-bottom to #content
-  //     equal to the keyboard height so inputs at the bottom of a card can
-  //     be scrolled into view, then auto-scrolls the focused element there.
+  // Note on modals: position:fixed on iOS tracks the visual viewport, so
+  // modal sheets positioned via align-items:flex-end are already above the
+  // keyboard without any JS. max-height values in dvh units also shrink with
+  // the visual viewport automatically. No JS overlay manipulation needed.
+  //
+  // For screen content (Train set inputs etc.) we do need explicit help:
+  //  1. Hide the nav while keyboard is up.
+  //  2. Add temporary padding-bottom to #content so inputs at the bottom of
+  //     an expanded card can be scrolled above the keyboard edge.
+  //  3. Scroll the focused input to the centre of the visible area.
   function handleKeyboard() {
-    var kbH = getKeyboardHeight();
-    var open = kbH > 50;
+    var open = isKeyboardOpen();
     var vvh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
 
     // 1. Nav
     var nav = document.getElementById('nav');
     if (nav) nav.style.display = open ? 'none' : '';
 
-    // 2. Modals
-    document.querySelectorAll('.modal-overlay.open').forEach(function(overlay) {
-      var sheet = overlay.querySelector('.modal-sheet');
-      if (!sheet) return;
-      if (open) {
-        // Lift the sheet above the keyboard via overlay padding
-        overlay.style.paddingBottom = kbH + 'px';
-        // Remember original maxHeight so we can restore it on close
-        if (!sheet.dataset.origMaxHeight) {
-          sheet.dataset.origMaxHeight = sheet.style.maxHeight || '';
-        }
-        // Constrain sheet to the visible area above the keyboard
-        sheet.style.maxHeight = Math.max(200, vvh - 20) + 'px';
-      } else {
-        overlay.style.paddingBottom = '';
-        if (sheet.dataset.origMaxHeight !== undefined) {
-          sheet.style.maxHeight = sheet.dataset.origMaxHeight;
-          delete sheet.dataset.origMaxHeight;
-        }
-      }
-    });
-
-    // 3. Screen content scroll
+    // 2 & 3. Screen content
     var content = document.getElementById('content');
-    if (content) {
-      if (open) {
-        // Extend the scrollable area so inputs near the bottom can scroll
-        // up above the keyboard edge
-        content.style.paddingBottom = (kbH + 120) + 'px';
-        // Auto-scroll the focused input into the visible region
-        setTimeout(function() {
-          var el = document.activeElement;
-          if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
-            el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-          }
-        }, 120);
-      } else {
-        content.style.paddingBottom = '';
-      }
+    if (!content) return;
+
+    if (open) {
+      // Extend the scrollable area by more than any keyboard height so inputs
+      // near the bottom of a card can be scrolled into the visible region.
+      content.style.paddingBottom = '440px';
+
+      // Scroll to the focused input. We wait two frames so the padding has
+      // applied and the keyboard animation has had a chance to settle, then
+      // directly set scrollTop using getBoundingClientRect so we know exactly
+      // where we're scrolling to relative to the visual viewport.
+      setTimeout(function() {
+        var el = document.activeElement;
+        if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
+        // Skip inputs inside modals — those are handled by the modal sheet.
+        if (el.closest && el.closest('.modal-overlay')) return;
+        var rect = el.getBoundingClientRect();
+        // Centre the input in the visible area above the keyboard
+        var targetCenter = vvh / 2;
+        var currentCenter = rect.top + rect.height / 2;
+        var delta = currentCenter - targetCenter;
+        if (Math.abs(delta) > 10) {
+          content.scrollBy({ top: delta, behavior: 'smooth' });
+        }
+      }, 200);
+
+    } else {
+      content.style.paddingBottom = '';
     }
   }
 
@@ -1001,17 +993,16 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
   window.addEventListener('orientationchange', measureAll);
   window.addEventListener('pageshow', measureAll);
   if (window.visualViewport) {
-    // visualViewport fires on BOTH keyboard open and close
     window.visualViewport.addEventListener('resize', function() {
       measureAll();
       handleKeyboard();
     });
   }
-  // When focus moves between inputs while keyboard is already open,
-  // visualViewport.resize doesn't re-fire. Re-run the scroll logic so the
-  // newly focused input is centred in the visible region above the keyboard.
+  // When focus moves between inputs while the keyboard is already open,
+  // visualViewport.resize does not re-fire (height didn't change).
+  // Re-run handleKeyboard so the new input is scrolled into view.
   document.addEventListener('focusin', function(e) {
-    if (getKeyboardHeight() > 50 && e.target &&
+    if (isKeyboardOpen() && e.target &&
         (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
       setTimeout(function() { handleKeyboard(); }, 80);
     }
