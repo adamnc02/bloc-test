@@ -877,19 +877,25 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
     document.documentElement.removeChild(el);
     return val;
   }
-  // Confirmed via two rounds of on-device diagnostics: window.innerHeight /
-  // visualViewport.height start out ~safeTop px short right after launch,
-  // then self-correct to the true full height a moment later (the original
-  // "settles after a beat" behavior this whole investigation started from —
-  // now backed by real numbers). Unconditionally adding safeTop back in
-  // was only correct for that early/short state; once it self-corrects,
-  // adding safeTop again overshoots past the real bottom edge. Capping at
-  // window.screen.height (which read identically — 956 — in both the
-  // short and the settled state) handles both cases without needing to
-  // know which one we're in, while still tracking visualViewport's
-  // legitimate shrink when the on-screen keyboard appears (which stays
-  // well under screen.height, so the cap never interferes with that).
+
+  // ── Keyboard detection ────────────────────────────────────────────────────
+  // On iOS standalone, window.innerHeight = full layout viewport (never
+  // changes when keyboard opens). window.visualViewport.height = the area
+  // actually visible above the keyboard. Their difference is the keyboard
+  // height. A threshold of 50px avoids false positives from tiny resizes.
+  function getKeyboardHeight() {
+    if (!window.visualViewport) return 0;
+    return Math.max(0, window.innerHeight - window.visualViewport.height);
+  }
+
+  // ── App height ────────────────────────────────────────────────────────────
+  // Only update --app-height when the keyboard is closed. Previously this
+  // function ran on every visualViewport resize, which shrunk the whole
+  // layout when the keyboard opened and pushed inputs into unreachable dead
+  // space. Leaving the layout at full height when the keyboard is open means
+  // content stays accessible by scrolling #content up.
   function setAppHeight() {
+    if (getKeyboardHeight() > 50) return; // keyboard open — keep full height
     var measured = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
     var h = measured + measureEnv('safe-area-inset-top');
     if (window.screen && window.screen.height) {
@@ -897,43 +903,89 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
     }
     document.documentElement.style.setProperty('--app-height', h + 'px');
   }
+
   function setSafeAreaVars() {
     document.documentElement.style.setProperty('--safe-bottom', measureEnv('safe-area-inset-bottom') + 'px');
     document.documentElement.style.setProperty('--safe-top', measureEnv('safe-area-inset-top') + 'px');
   }
-  // Bypasses calc(var(--safe-bottom)) entirely for #nav specifically and
-  // sets a literal pixel value via JS instead — in case WebKit is correctly
-  // updating the custom property but failing to repaint elements that
-  // reference it inside calc() without a scroll/compositing pass forcing
-  // it. Directly assigning element.style.bottom is a plain style mutation
-  // with no such known repaint-lag quirk.
+
   function positionNavDirect() {
     var nav = document.getElementById('nav');
     if (!nav) return;
     nav.style.bottom = (measureEnv('safe-area-inset-bottom') - 6) + 'px';
   }
-  // Hide the nav bar when the keyboard is open so it doesn't float above
-  // the keyboard and push content around. We detect keyboard presence by
-  // comparing visualViewport.height to screen.height — when the keyboard
-  // is open on iOS, visualViewport shrinks by the keyboard height.
-  function updateNavVisibility() {
+
+  // ── Keyboard layout handler ───────────────────────────────────────────────
+  // Runs whenever the keyboard opens or closes (visualViewport resize event).
+  // Handles three things:
+  //  1. Nav visibility  — hide nav while keyboard is up (already no safe-area
+  //     interference; now also avoids the tab bar intercept issue on Train).
+  //  2. Modal repositioning — modal overlays are position:fixed relative to
+  //     the layout viewport, so their sheets end up behind the keyboard.
+  //     padding-bottom on the flex overlay lifts the sheet above the keyboard.
+  //     Sheet max-height is capped to the visual viewport height so internal
+  //     scroll lists get exactly the right amount of room.
+  //  3. Screen-content scroll — adds temporary padding-bottom to #content
+  //     equal to the keyboard height so inputs at the bottom of a card can
+  //     be scrolled into view, then auto-scrolls the focused element there.
+  function handleKeyboard() {
+    var kbH = getKeyboardHeight();
+    var open = kbH > 50;
+    var vvh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
+    // 1. Nav
     var nav = document.getElementById('nav');
-    if (!nav) return;
-    var vvh = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
-    var screenH = window.screen ? window.screen.height : vvh;
-    var keyboardOpen = vvh < screenH * 0.75;
-    nav.style.display = keyboardOpen ? 'none' : '';
+    if (nav) nav.style.display = open ? 'none' : '';
+
+    // 2. Modals
+    document.querySelectorAll('.modal-overlay.open').forEach(function(overlay) {
+      var sheet = overlay.querySelector('.modal-sheet');
+      if (!sheet) return;
+      if (open) {
+        // Lift the sheet above the keyboard via overlay padding
+        overlay.style.paddingBottom = kbH + 'px';
+        // Remember original maxHeight so we can restore it on close
+        if (!sheet.dataset.origMaxHeight) {
+          sheet.dataset.origMaxHeight = sheet.style.maxHeight || '';
+        }
+        // Constrain sheet to the visible area above the keyboard
+        sheet.style.maxHeight = Math.max(200, vvh - 20) + 'px';
+      } else {
+        overlay.style.paddingBottom = '';
+        if (sheet.dataset.origMaxHeight !== undefined) {
+          sheet.style.maxHeight = sheet.dataset.origMaxHeight;
+          delete sheet.dataset.origMaxHeight;
+        }
+      }
+    });
+
+    // 3. Screen content scroll
+    var content = document.getElementById('content');
+    if (content) {
+      if (open) {
+        // Extend the scrollable area so inputs near the bottom can scroll
+        // up above the keyboard edge
+        content.style.paddingBottom = (kbH + 120) + 'px';
+        // Auto-scroll the focused input into the visible region
+        setTimeout(function() {
+          var el = document.activeElement;
+          if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
+            el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          }
+        }, 120);
+      } else {
+        content.style.paddingBottom = '';
+      }
+    }
   }
+
   function measureAll() {
     setAppHeight();
     setSafeAreaVars();
     positionNavDirect();
-    updateNavVisibility();
   }
-  // window.innerHeight/visualViewport.height were confirmed (via on-device
-  // testing) to start short right after a standalone launch and settle to
-  // the true value a moment later, so keep re-measuring for a few seconds
-  // after load to catch that settling without needing a manual scroll.
+
+  // Boot sequence
   document.addEventListener('DOMContentLoaded', function() {
     var n = 0;
     var iv = setInterval(function() {
@@ -942,10 +994,6 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
     }, 500);
   });
   measureAll();
-  // The very first reading above can itself land mid-launch-transition on
-  // iOS standalone, before WebKit's handshake settles — so re-measure a
-  // few more times shortly after load as a safety net. This is what used
-  // to require a manual scroll; now it self-corrects automatically.
   requestAnimationFrame(function() { requestAnimationFrame(measureAll); });
   setTimeout(measureAll, 100);
   setTimeout(measureAll, 400);
@@ -953,8 +1001,21 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
   window.addEventListener('orientationchange', measureAll);
   window.addEventListener('pageshow', measureAll);
   if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', measureAll);
+    // visualViewport fires on BOTH keyboard open and close
+    window.visualViewport.addEventListener('resize', function() {
+      measureAll();
+      handleKeyboard();
+    });
   }
+  // When focus moves between inputs while keyboard is already open,
+  // visualViewport.resize doesn't re-fire. Re-run the scroll logic so the
+  // newly focused input is centred in the visible region above the keyboard.
+  document.addEventListener('focusin', function(e) {
+    if (getKeyboardHeight() > 50 && e.target &&
+        (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+      setTimeout(function() { handleKeyboard(); }, 80);
+    }
+  });
 })();
 </script>
 </head>
@@ -1580,7 +1641,7 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 <!-- Nutrition Log -->
 <!-- Nutrition: meal log chooser -->
 <div class="modal-overlay" id="modal-nutr-add">
-  <div class="modal-sheet" data-modal="modal-nutr-add" style="max-height:85dvh;display:flex;flex-direction:column;">
+  <div class="modal-sheet" data-modal="modal-nutr-add" style="max-height:85dvh;display:flex;flex-direction:column;overflow:hidden;">
     <div class="modal-handle-row" style="flex-shrink:0;"><div class="modal-handle"></div><button class="modal-close-btn" onclick="closeModal('modal-nutr-add')">✕</button></div>
     <div class="modal-title" id="nutr-add-title" style="flex-shrink:0;">Add to Breakfast</div>
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-shrink:0;">
@@ -1597,8 +1658,8 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
         <span style="font-weight:600;">Recipe</span>
       </button>
     </div>
-    <input type="text" id="nutr-add-search" placeholder="Search foods…" oninput="renderNutrAddList()" onfocus="syncNutrModalToViewport()" onblur="syncNutrModalToViewport()" style="margin-bottom:10px;flex-shrink:0;">
-    <div id="nutr-add-list" style="overflow-y:auto;flex:1;"></div>
+    <input type="text" id="nutr-add-search" placeholder="Search foods…" oninput="renderNutrAddList()" style="margin-bottom:10px;flex-shrink:0;">
+    <div id="nutr-add-list" style="overflow-y:auto;flex:1;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;"></div>
   </div>
 </div>
 
@@ -4224,17 +4285,6 @@ function renderTrainDay(macro) {
     }
 
     // ── Compact header ─────────────────────────────────────────────────────────
-    // Sets/reps summary line: show actual sets this meso, plus last week's reps / suggested reps
-    const lastReps = prevActualReps !== null ? prevActualReps : null;
-    const lastWeight = prevActualWeight !== null ? prevActualWeight.toFixed(1) : null;
-    const setsRepsText = lastReps !== null
-      ? `${sets} sets &bull; ${lastReps}/${repsPlaceholder} reps`
-      : `${sets} sets &bull; ${repsPlaceholder} reps`;
-    // Weight reference: last meso weight / suggested weight (replaces "Start: X kg")
-    const weightRefText = lastWeight !== null
-      ? `${lastWeight} / ${recommendedWeight.toFixed(1)} kg`
-      : `${weightPlaceholder} kg target`;
-
     html += `<div class="card" style="margin-bottom:10px;padding:0;">
       <div onclick="toggleExercise('${expandKey}')"
         style="width:100%;background:none;border:none;padding:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;">
@@ -4243,9 +4293,9 @@ function renderTrainDay(macro) {
             <div style="font-family:var(--font-display);font-size:15px;font-weight:600;color:var(--text);">${ex.name}</div>
             <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;align-items:center;">
               <span class="badge ${ex.type==='standard'?'badge-blue':ex.type==='myorep'?'badge-purple':'badge-amber'}">${typeLabel}</span>
+              <span class="badge badge-purple">${sets} sets · ${ex.reps} reps</span>
               ${progressBadge}
             </div>
-            <div style="font-size:12px;color:var(--text2);margin-top:5px;">${setsRepsText}</div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
             ${allDone
@@ -4259,7 +4309,7 @@ function renderTrainDay(macro) {
                    ${doneSets > 0 ? `<span style="font-size:11px;color:var(--text3);white-space:nowrap;">${doneSets}/${sets}</span>` : ''}
                  </div>`
             }
-            <span style="font-size:11px;color:var(--text3);white-space:nowrap;">${weightRefText}</span>
+            <span style="font-size:11px;color:var(--text3);white-space:nowrap;">Start: ${ex.startWeight} kg</span>
           </div>
         </div>
         <div style="display:flex;justify-content:flex-end;margin-top:4px;">
@@ -4355,16 +4405,13 @@ function renderTrainDay(macro) {
       for (let s = 0; s < sets; s++) {
         const logKey = key + '_' + exId + '_' + s;
         const log = state.trainLogs[logKey] || {};
-        const nextWKey = s < sets - 1 ? `inp-w-${key}_${exId}_${s+1}` : '';
         setRows += `<div class="set-row">
           <span class="set-num">${s + 1}</span>
           <span class="set-suggested">${weightPlaceholder} kg × ${repsPlaceholder}</span>
           <input class="set-input" type="number" step="0.5" placeholder="${weightPlaceholder}" value="${log.weight || ''}"
-            oninput="logSet('${logKey}','weight',this.value)" id="inp-w-${logKey}"
-            onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('inp-r-${logKey}')?.focus();}">
+            oninput="logSet('${logKey}','weight',this.value)" id="inp-w-${logKey}">
           <input class="set-input" type="text" placeholder="${repsPlaceholder}" value="${log.reps || ''}"
-            oninput="logSet('${logKey}','reps',this.value)" id="inp-r-${logKey}"
-            onkeydown="if(event.key==='Enter'){event.preventDefault();${nextWKey ? `document.getElementById('${nextWKey}')?.focus();` : 'this.blur();'}}">
+            oninput="logSet('${logKey}','reps',this.value)" id="inp-r-${logKey}">
           <div class="${log.done ? 'check-done' : 'check-empty'}" onclick="toggleSetDone('${logKey}')">
             <svg viewBox="0 0 14 14"><polyline points="2,7 5.5,10.5 12,3"/></svg>
           </div>
@@ -5447,31 +5494,6 @@ function nutrSelectBadge(date) {
 }
 
 // ── Log entry flow ─────────────────────────────────────────────────────────
-// Resize the nutr-add modal sheet to the visual viewport when the keyboard
-// is open, so the search results list sits just above the keyboard rather
-// than being hidden behind it.
-function syncNutrModalToViewport() {
-  const sheet = document.querySelector('#modal-nutr-add .modal-sheet');
-  if (!sheet) return;
-  const vvh = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
-  const screenH = window.screen ? window.screen.height : vvh;
-  if (vvh < screenH * 0.75) {
-    // Keyboard is open — constrain the sheet to the visible area
-    sheet.style.maxHeight = vvh + 'px';
-  } else {
-    // Keyboard closed — restore default
-    sheet.style.maxHeight = '';
-  }
-}
-// Keep modal updated if viewport resizes while it's open (keyboard appears)
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', function() {
-    const overlay = document.getElementById('modal-nutr-add');
-    if (overlay && overlay.classList.contains('open')) {
-      syncNutrModalToViewport();
-    }
-  });
-}
 function openNutrAdd(meal) {
   nutrActiveMeal = meal;
   document.getElementById('nutr-add-title').textContent = 'Add to ' + meal;
