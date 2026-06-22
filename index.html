@@ -13,6 +13,7 @@
 :root {
   /* ── Surfaces — blue-tinted dark scheme, mirrors [data-mode="light"] ── */
   --bg: #0f1620;
+  --bg-rgb: 15, 22, 32;
   --surface: #161f2c;
   --surface2: #1d2837;
   --surface3: #253142;
@@ -59,6 +60,7 @@
    page's identity colour stays consistent across modes. */
 [data-mode="light"] {
   --bg: #e7edf4;
+  --bg-rgb: 231, 237, 244;
   --surface: #f2f5f9;
   --surface2: #fafbfd;
   --surface3: #ffffff;
@@ -154,7 +156,7 @@ body {
      there's no mismatch left for any of these bugs to come from. */
   position: absolute;
   left: 50%;
-  bottom: calc(var(--safe-bottom) + 4px);
+  bottom: calc(var(--safe-bottom) - 6px);
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -168,6 +170,34 @@ body {
   padding: 5px;
   box-shadow: 0 14px 32px rgba(0,0,0,0.38), 0 2px 10px rgba(0,0,0,0.22);
   z-index: 100;
+}
+
+/* ── EDGE FADES ──────────────────────────────────────────────
+   Soft gradient strips pinned to the very top/bottom of the screen so
+   scrolling content fades into the background colour as it reaches the
+   edges, instead of being hard-clipped right at the safe area boundary.
+   Anchored to #app (matching --app-height, now confirmed correct) so
+   they always cover the true top/bottom 15px regardless of device.
+   transparent end is written as rgba(var(--bg-rgb), 0) rather than the
+   `transparent` keyword to avoid the classic gradient-darkens-in-the-
+   middle artifact some browsers show when interpolating to a literal
+   transparent black. pointer-events: none so they never block taps;
+   z-index sits above scrolling content but below the floating nav. */
+.edge-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--safe-top);
+  pointer-events: none;
+  z-index: 50;
+}
+.edge-fade-top {
+  top: 0;
+  background: linear-gradient(to bottom, rgba(var(--bg-rgb), 1) 0%, rgba(var(--bg-rgb), 0) 100%);
+}
+.edge-fade-bottom {
+  bottom: 0;
+  background: linear-gradient(to top, rgba(var(--bg-rgb), 1) 0%, rgba(var(--bg-rgb), 0) 100%);
 }
 
 #nav-pill {
@@ -880,12 +910,25 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
   function positionNavDirect() {
     var nav = document.getElementById('nav');
     if (!nav) return;
-    nav.style.bottom = (measureEnv('safe-area-inset-bottom') + 4) + 'px';
+    nav.style.bottom = (measureEnv('safe-area-inset-bottom') - 6) + 'px';
+  }
+  // Hide the nav bar when the keyboard is open so it doesn't float above
+  // the keyboard and push content around. We detect keyboard presence by
+  // comparing visualViewport.height to screen.height — when the keyboard
+  // is open on iOS, visualViewport shrinks by the keyboard height.
+  function updateNavVisibility() {
+    var nav = document.getElementById('nav');
+    if (!nav) return;
+    var vvh = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+    var screenH = window.screen ? window.screen.height : vvh;
+    var keyboardOpen = vvh < screenH * 0.75;
+    nav.style.display = keyboardOpen ? 'none' : '';
   }
   function measureAll() {
     setAppHeight();
     setSafeAreaVars();
     positionNavDirect();
+    updateNavVisibility();
   }
   // window.innerHeight/visualViewport.height were confirmed (via on-device
   // testing) to start short right after a standalone launch and settle to
@@ -917,6 +960,8 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 </head>
 <body data-theme="multi" data-mode="dark">
 <div id="app">
+<div class="edge-fade edge-fade-top"></div>
+<div class="edge-fade edge-fade-bottom"></div>
 
   <div id="content">
 
@@ -1013,7 +1058,7 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
       <div class="card" style="margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <span style="font-size:13px;color:var(--text2);">BLOC Training App</span>
-          <span class="badge badge-green">v5.07</span>
+          <span class="badge badge-green">v5.08</span>
         </div>
       </div>
 
@@ -1552,7 +1597,7 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
         <span style="font-weight:600;">Recipe</span>
       </button>
     </div>
-    <input type="text" id="nutr-add-search" placeholder="Search foods…" oninput="renderNutrAddList()" style="margin-bottom:10px;flex-shrink:0;">
+    <input type="text" id="nutr-add-search" placeholder="Search foods…" oninput="renderNutrAddList()" onfocus="syncNutrModalToViewport()" onblur="syncNutrModalToViewport()" style="margin-bottom:10px;flex-shrink:0;">
     <div id="nutr-add-list" style="overflow-y:auto;flex:1;"></div>
   </div>
 </div>
@@ -4179,6 +4224,17 @@ function renderTrainDay(macro) {
     }
 
     // ── Compact header ─────────────────────────────────────────────────────────
+    // Sets/reps summary line: show actual sets this meso, plus last week's reps / suggested reps
+    const lastReps = prevActualReps !== null ? prevActualReps : null;
+    const lastWeight = prevActualWeight !== null ? prevActualWeight.toFixed(1) : null;
+    const setsRepsText = lastReps !== null
+      ? `${sets} sets &bull; ${lastReps}/${repsPlaceholder} reps`
+      : `${sets} sets &bull; ${repsPlaceholder} reps`;
+    // Weight reference: last meso weight / suggested weight (replaces "Start: X kg")
+    const weightRefText = lastWeight !== null
+      ? `${lastWeight} / ${recommendedWeight.toFixed(1)} kg`
+      : `${weightPlaceholder} kg target`;
+
     html += `<div class="card" style="margin-bottom:10px;padding:0;">
       <div onclick="toggleExercise('${expandKey}')"
         style="width:100%;background:none;border:none;padding:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;">
@@ -4187,9 +4243,9 @@ function renderTrainDay(macro) {
             <div style="font-family:var(--font-display);font-size:15px;font-weight:600;color:var(--text);">${ex.name}</div>
             <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;align-items:center;">
               <span class="badge ${ex.type==='standard'?'badge-blue':ex.type==='myorep'?'badge-purple':'badge-amber'}">${typeLabel}</span>
-              <span class="badge badge-purple">${sets} sets · ${ex.reps} reps</span>
               ${progressBadge}
             </div>
+            <div style="font-size:12px;color:var(--text2);margin-top:5px;">${setsRepsText}</div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
             ${allDone
@@ -4203,7 +4259,7 @@ function renderTrainDay(macro) {
                    ${doneSets > 0 ? `<span style="font-size:11px;color:var(--text3);white-space:nowrap;">${doneSets}/${sets}</span>` : ''}
                  </div>`
             }
-            <span style="font-size:11px;color:var(--text3);white-space:nowrap;">Start: ${ex.startWeight} kg</span>
+            <span style="font-size:11px;color:var(--text3);white-space:nowrap;">${weightRefText}</span>
           </div>
         </div>
         <div style="display:flex;justify-content:flex-end;margin-top:4px;">
@@ -4299,13 +4355,16 @@ function renderTrainDay(macro) {
       for (let s = 0; s < sets; s++) {
         const logKey = key + '_' + exId + '_' + s;
         const log = state.trainLogs[logKey] || {};
+        const nextWKey = s < sets - 1 ? `inp-w-${key}_${exId}_${s+1}` : '';
         setRows += `<div class="set-row">
           <span class="set-num">${s + 1}</span>
           <span class="set-suggested">${weightPlaceholder} kg × ${repsPlaceholder}</span>
           <input class="set-input" type="number" step="0.5" placeholder="${weightPlaceholder}" value="${log.weight || ''}"
-            oninput="logSet('${logKey}','weight',this.value)" id="inp-w-${logKey}">
+            oninput="logSet('${logKey}','weight',this.value)" id="inp-w-${logKey}"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('inp-r-${logKey}')?.focus();}">
           <input class="set-input" type="text" placeholder="${repsPlaceholder}" value="${log.reps || ''}"
-            oninput="logSet('${logKey}','reps',this.value)" id="inp-r-${logKey}">
+            oninput="logSet('${logKey}','reps',this.value)" id="inp-r-${logKey}"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();${nextWKey ? `document.getElementById('${nextWKey}')?.focus();` : 'this.blur();'}}">
           <div class="${log.done ? 'check-done' : 'check-empty'}" onclick="toggleSetDone('${logKey}')">
             <svg viewBox="0 0 14 14"><polyline points="2,7 5.5,10.5 12,3"/></svg>
           </div>
@@ -5388,6 +5447,31 @@ function nutrSelectBadge(date) {
 }
 
 // ── Log entry flow ─────────────────────────────────────────────────────────
+// Resize the nutr-add modal sheet to the visual viewport when the keyboard
+// is open, so the search results list sits just above the keyboard rather
+// than being hidden behind it.
+function syncNutrModalToViewport() {
+  const sheet = document.querySelector('#modal-nutr-add .modal-sheet');
+  if (!sheet) return;
+  const vvh = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+  const screenH = window.screen ? window.screen.height : vvh;
+  if (vvh < screenH * 0.75) {
+    // Keyboard is open — constrain the sheet to the visible area
+    sheet.style.maxHeight = vvh + 'px';
+  } else {
+    // Keyboard closed — restore default
+    sheet.style.maxHeight = '';
+  }
+}
+// Keep modal updated if viewport resizes while it's open (keyboard appears)
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', function() {
+    const overlay = document.getElementById('modal-nutr-add');
+    if (overlay && overlay.classList.contains('open')) {
+      syncNutrModalToViewport();
+    }
+  });
+}
 function openNutrAdd(meal) {
   nutrActiveMeal = meal;
   document.getElementById('nutr-add-title').textContent = 'Add to ' + meal;
