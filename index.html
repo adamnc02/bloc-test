@@ -920,16 +920,14 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
   }
 
   // ── Keyboard layout handler ───────────────────────────────────────────────
-  // Note on modals: position:fixed on iOS tracks the visual viewport, so
-  // modal sheets positioned via align-items:flex-end are already above the
-  // keyboard without any JS. max-height values in dvh units also shrink with
-  // the visual viewport automatically. No JS overlay manipulation needed.
+  // Note on modals vs screen content: in iOS standalone, position:fixed tracks
+  // the LAYOUT viewport (= html/body = --app-height), NOT the visual viewport.
+  // When --app-height stays full-height (Train fix), the overlay is full-screen
+  // and align-items:flex-end places the sheet at the physical bottom (behind
+  // keyboard). Fix: set overlay.style.height = visualViewport.height so the
+  // overlay only covers the visible area; the sheet then sits above the keyboard.
   //
-  // For screen content (Train set inputs etc.) we do need explicit help:
-  //  1. Hide the nav while keyboard is up.
-  //  2. Add temporary padding-bottom to #content so inputs at the bottom of
-  //     an expanded card can be scrolled above the keyboard edge.
-  //  3. Scroll the focused input to the centre of the visible area.
+  // For screen content (Train set inputs) we add explicit padding + scroll.
   function handleKeyboard() {
     var open = isKeyboardOpen();
     var vvh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
@@ -938,7 +936,27 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
     var nav = document.getElementById('nav');
     if (nav) nav.style.display = open ? 'none' : '';
 
-    // 2 & 3. Screen content
+    // 2. Modals — shrink overlay to visual viewport so sheet lands above keyboard
+    document.querySelectorAll('.modal-overlay.open').forEach(function(overlay) {
+      var sheet = overlay.querySelector('.modal-sheet');
+      if (open) {
+        overlay.style.height = vvh + 'px';
+        if (sheet) {
+          if (!sheet.dataset.origMaxHeight) {
+            sheet.dataset.origMaxHeight = sheet.style.maxHeight || '';
+          }
+          sheet.style.maxHeight = Math.max(200, vvh - 20) + 'px';
+        }
+      } else {
+        overlay.style.height = '';
+        if (sheet && sheet.dataset.origMaxHeight !== undefined) {
+          sheet.style.maxHeight = sheet.dataset.origMaxHeight;
+          delete sheet.dataset.origMaxHeight;
+        }
+      }
+    });
+
+    // 3. Screen content scroll (inputs inside #content, not modals)
     var content = document.getElementById('content');
     if (!content) return;
 
